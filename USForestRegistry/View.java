@@ -4,8 +4,7 @@ import java.awt.*;
 import javax.swing.*;
 import java.sql.SQLException;
 import java.text.NumberFormat;
-import java.util.function.Supplier;
-import java.util.Collection;
+import static USForestRegistry.AttributeNames.*;
 
 public class View 
 {
@@ -16,82 +15,66 @@ public class View
 	{
 		//Create and set up the window.
 		JFrame frame = new JFrame("U.S. Forest Registry");
-		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE); //TODO: do custom function where it closes model, which needs to be an instance variable of a View object
 
-		//Create the menu bar. Make it have a green background.
+		//Create the menu bar and contained menu items.
 		JMenuBar menuBar = new JMenuBar();
 		menuBar.setOpaque(true);
-		menuBar.setBackground(new Color(154, 165, 127));
-		menuBar.setPreferredSize(new Dimension(200, 20));
- 
-		//Set the menu bar and add the label to the content pane.
+
+		JMenu insert = new JMenu("INSERT");
+		JMenuItem addForest = new JMenuItem("Add Forest..."); //TODO: make these strings constants, so they can be the titles of the dialog boxes they create
+		JMenuItem addWorker = new JMenuItem("Add Worker...");
+		JMenuItem addSensor = new JMenuItem("Add Sensor...");
+		insert.add(addForest);
+		insert.add(addWorker);
+		insert.add(addSensor);
+
+		JMenu update = new JMenu("UPDATE");
+		JMenuItem switchWorkersDuties = new JMenuItem("Switch Workers' Duties...");
+		JMenuItem updateSensorStatus = new JMenuItem("Update Sensor Status...");
+		JMenuItem updateForestCoveredArea = new JMenuItem("Update Forest Covered Area...");
+		update.add(switchWorkersDuties);
+		update.add(updateSensorStatus);
+		update.add(updateForestCoveredArea);
+
+		JMenu select = new JMenu("SELECT");
+		JMenuItem findTopKBusyWorkers = new JMenuItem("Find Top K Busy Workers...");
+		JMenuItem displaySensorsRanking = new JMenuItem("Display Sensors Ranking");
+		select.add(findTopKBusyWorkers);
+		select.add(displaySensorsRanking);
+
+		menuBar.add(insert);
+		menuBar.add(update);
+		menuBar.add(select);
 		frame.setJMenuBar(menuBar);
-		//frame.getContentPane().add(yellowLabel, BorderLayout.CENTER);
+
+		//Create table viewing area.
+		//TODO: frame.getContentPane().add(tableViewingArea, BorderLayout.CENTER);
 
 		//Display the window.
 		frame.pack();
 		frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
 
-		Model model = null;
-		String loginAffirmativeOptionText = "Connect";
-		LabeledTextFieldDialog login = new LabeledTextFieldDialog(
-				frame,
-				"Connect to Database",
-				new LabelAndFormat[]
-						{
-								new LabelAndFormat("hostname", null),
-								new LabelAndFormat("port", NumberFormat.getIntegerInstance()),
-								new LabelAndFormat("database name", null),
-								new LabelAndFormat("username", null),
-								new LabelAndFormat("password", null)
-						},
-				loginAffirmativeOptionText,
-				false
-		);
-
-		while(true)
-		{
-			if(login.getOptionPaneValue() == loginAffirmativeOptionText)
-			{
-				try
+		// Show the initial database connection/login dialog, and connect to the database
+		LabelAndFormat[] connectLabelsAndFormats = new LabelAndFormat[]
 				{
-					model = new Model(login.getLabelToTypedText());
-					model.closeConnection();
-					//TODO: enable menu bar
-					break;
-				}
-				catch(SQLException e)
-				{
-					JOptionPane.showMessageDialog(login, e.getMessage(), "Error",
-							JOptionPane.ERROR_MESSAGE);
-					login.revive();
-				}
-			}
-			else //user hit Cancel, or X'd out the window
-			{
-				break;
-			}
-		}
-		login.dispose();
+						new LabelAndFormat(HOSTNAME, null),
+						new LabelAndFormat(PORT, NumberFormat.getIntegerInstance()),
+						new LabelAndFormat(DATABASE_NAME, null),
+						new LabelAndFormat(USERNAME, null),
+						new LabelAndFormat(PASSWORD, null)
+				};
+		Model model = callMethodViaCustomDialog(Model::new, frame, "Connect to Database",
+			connectLabelsAndFormats, "Connect", false);
 	}
 
-	public static <T>
-	Collection<T> transferElements(Collection<T> sourceCollection, Supplier<Collection<T>> collectionFactory)
+	private static <R> R callMethodViaCustomDialog(FunctionThrowsSQLException<R> methodReference, Frame owner,
+												   String title, LabelAndFormat[] labelsAndFormats,
+												   String affirmativeOptionText, boolean hasCancelButton)
 	{
-		Collection<T> result = collectionFactory.get();
-		for (T t : sourceCollection) {
-			result.add(t);
-		}
-		return result;
-	}
-
-
-
-	private static Object callModelMethodViaCustomDialog(Frame owner, String title,
-														 LabelAndFormat[] labelsAndFormats, String affirmativeOptionText,
-														 boolean hasCancelButton) //TODO: first arg is method reference to call
-	{
+		// Generate the dialog box according to the arguments to this function
+		R toReturn = null;
 		LabeledTextFieldDialog dialog = new LabeledTextFieldDialog(
 				owner,
 				title,
@@ -100,16 +83,18 @@ public class View
 				hasCancelButton
 		);
 
+		// Attempt to call the associated method with the user-supplied info from the dialog box.
+		// Show an error message and let the user re-enter info if the intended method call throws an exception,
+		// otherwise, show a method-specific confirmation message if the method call was successful.
 		while(true)
 		{
 			if(dialog.getOptionPaneValue() == affirmativeOptionText) //user hit the affirmative button
 			{
 				try
 				{
-					//TODO: this method returns a model, or null. So keep return type as Object to keep it neutral
-					model = new Model(login.getTypedText());
-					//TODO: enable menu bar
-					break; //showConfirmation=true
+					toReturn = methodReference.apply(dialog.getLabelToTypedText());
+					//TODO: enable menu bar if instantiating model -- that's in a View wrapper function
+					break; //showConfirmation=true, or just show it here
 				}
 				catch(SQLException e)
 				{
@@ -122,7 +107,9 @@ public class View
 				break; //showConfirmation=false
 			}
 		}
+
 		dialog.dispose();
+		return toReturn;
 	}
 
 	public static void main(String[] args)

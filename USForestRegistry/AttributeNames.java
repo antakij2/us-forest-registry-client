@@ -25,4 +25,16 @@ public class AttributeNames
 	public static final String REPORT_TIME = "report_time";
 	public static final String TEMPERATURE = "temperature";
 	public static final String PERCENTAGE = "percentage";
+	public static final String HOSTNAME = "hostname";
+	public static final String PORT = "port";
+	public static final String DATABASE_NAME = "database name";
+	public static final String USERNAME = "username";
+	public static final String PASSWORD = "password";
+	public static final String COVERAGE = "coverage";
+	public static final String FOREST = "forest";
+	public static final String INTERSECTION = "intersection";
+	public static final String REPORT = "report";
+	public static final String ROAD = "road";
+	public static final String SENSOR = "sensor";
+	public static final String WORKER = "worker";
 }
