@@ -127,7 +127,7 @@ class LabeledTextFieldDialog extends JDialog implements ActionListener, Property
 				for(String label : labelToTypedText.keySet())
 				{
 					String textOfThisField = textFields[index].getText();
-					if(textFields[index] instanceof JFormattedTextField &&
+					if(textFields[index] instanceof JFormattedTextField && //TODO: just require value for all boxes?
 							(textOfThisField == null || textOfThisField.trim().equals("")))
 					{
 						// Show a warning message about the box that needs a value, and let the user fill it in

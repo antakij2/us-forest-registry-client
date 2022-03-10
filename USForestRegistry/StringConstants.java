@@ -1,6 +1,6 @@
 package USForestRegistry;
 
-public class AttributeNames
+public class StringConstants
 {
 	public static final String FOREST_NO = "forest_no";
 	public static final String NAME = "name";
@@ -37,4 +37,17 @@ public class AttributeNames
 	public static final String ROAD = "road";
 	public static final String SENSOR = "sensor";
 	public static final String WORKER = "worker";
+	public static final String INSERT = "Insert";
+	public static final String UPDATE = "Update";
+	public static final String QUERY = "Query";
+	public static final String ADD_FOREST = "Add Forest";
+	public static final String ADD_WORKER = "Add Worker";
+	public static final String ADD_SENSOR = "Add Sensor";
+	public static final String SWITCH_WORKERS_DUTIES = "Switch Workers' Duties";
+	public static final String UPDATE_SENSOR_STATUS = "Update Sensor Status";
+	public static final String UPDATE_FOREST_COVERED_AREA = "Update Forest Covered Area";
+	public static final String FIND_TOP_K_BUSY_WORKERS = "Find Top K Busy Workers";
+	public static final String DISPLAY_SENSORS_RANKING = "Display Sensors Ranking";
+	public static final String STATE_ABBREVIATION = STATE + "_" + ABBREVIATION;
+	public static final String DOTS = "...";
 }

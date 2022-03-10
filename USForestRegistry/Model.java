@@ -2,7 +2,7 @@ package USForestRegistry;
 
 import java.sql.*;
 import java.util.HashMap;
-import static USForestRegistry.AttributeNames.*;
+import static USForestRegistry.StringConstants.*;
 
 public class Model
 {
@@ -25,13 +25,15 @@ public class Model
 				attrToVal.get(HOSTNAME), attrToVal.get(PORT), attrToVal.get(DATABASE_NAME));
 
 		con = DriverManager.getConnection(url, attrToVal.get(USERNAME), attrToVal.get(PASSWORD));
-		//con.setAutoCommit(false); //TODO: do we need this?
+		//con.setAutoCommit(false); //TODO: we need this, and also rollback logic in each function if one of the queries fails
+
 		addForestStmt_FOREST = con.prepareStatement(String.format(
 				"INSERT INTO %s VALUES(?, ?, ?, ?, ?, ?, ?, ?)", FOREST));
 		addForestStmt_STATE = con.prepareStatement(String.format(
 				"INSERT INTO %s(%s) VALUES(?)", STATE, ABBREVIATION));
 		addForestStmt_COVERAGE = con.prepareStatement(String.format(
 				"INSERT INTO %s VALUES(?, ?, 1, ?)", COVERAGE));
+
 		addWorkerStmt = con.prepareStatement("INSERT INTO worker VALUES(?, ?, ?, ?)");
 		addSensorStmt = con.prepareStatement("INSERT INTO sensor VALUES(?, ?, ?, ?, ?, ?, ?)");
 		//switchWorkersDutiesStmt
@@ -44,8 +46,13 @@ public class Model
 		//displaySensorsRankingStmt
 	}
 
-	public void addForest(HashMap<String, String> attrToVal) throws SQLException
+	public String addForest(HashMap<String, String> attrToVal) throws SQLException
 	{
+		//TODO: check to see if entered state already exists. not only do you not need a STATE update if it exists, but
+		// you must also add the entered area to the existing coverage in that state. Same goes for entered fields that
+		// are primary keys in other tables, for the remaining functions.
+
+		//TODO: what if string field is too long? it doesn't throw an error??
 		addForestStmt_FOREST.setString(1, attrToVal.get(FOREST_NO));
 		addForestStmt_FOREST.setString(2, attrToVal.get(NAME));
 		addForestStmt_FOREST.setDouble(3, Double.parseDouble(attrToVal.get(AREA)));
@@ -55,25 +62,28 @@ public class Model
 		addForestStmt_FOREST.setDouble(7, Double.parseDouble(attrToVal.get(MBR_YMIN)));
 		addForestStmt_FOREST.setDouble(8, Double.parseDouble(attrToVal.get(MBR_YMAX)));
 
-		addForestStmt_STATE.setString(1, attrToVal.get(ABBREVIATION));
+		addForestStmt_STATE.setString(1, attrToVal.get(STATE_ABBREVIATION));
 
 		addForestStmt_COVERAGE.setString(1, attrToVal.get(FOREST_NO));
-		addForestStmt_COVERAGE.setString(2, attrToVal.get(ABBREVIATION));
-		addForestStmt_COVERAGE.setDouble(3, Double.parseDouble(attrToVal.get(AREA))); //TODO: or is this parameter 4
+		addForestStmt_COVERAGE.setString(2, attrToVal.get(STATE_ABBREVIATION));
+		addForestStmt_COVERAGE.setDouble(3, Double.parseDouble(attrToVal.get(AREA)));
 
 		addForestStmt_FOREST.executeUpdate();
 		addForestStmt_STATE.executeUpdate();
 		addForestStmt_COVERAGE.executeUpdate();
+
+		return attrToVal.get(NAME) + " added successfully.";
 	}
 
-	public void addWorker(String ssn, String name, int rank, String state) throws SQLException
+	public String addWorker(HashMap<String, String> attrToVal) throws SQLException
 	{
-		addWorkerStmt.setString(1, ssn);
-		addWorkerStmt.setString(2, name);
-		addWorkerStmt.setInt(3, rank);
-		addWorkerStmt.setString(4, state);
+		addWorkerStmt.setString(1, attrToVal.get(SSN));
+		addWorkerStmt.setString(2, attrToVal.get(NAME));
+		addWorkerStmt.setInt(3, Integer.parseInt(attrToVal.get(RANK)));
+		addWorkerStmt.setString(4, attrToVal.get(STATE));
 
 		addWorkerStmt.executeUpdate();
+		return attrToVal.get(NAME) + " added successfully.";
 	}
 
 	public void closeConnection() throws SQLException

@@ -2,34 +2,80 @@ package USForestRegistry;
 
 import java.awt.*;
 import javax.swing.*;
+import java.awt.event.ActionEvent;
 import java.sql.SQLException;
 import java.text.NumberFormat;
-import static USForestRegistry.AttributeNames.*;
+import static USForestRegistry.StringConstants.*;
 
 public class View 
 {
 	/*
 	* Create the GUI and show it. 
 	*/
-	private static void createAndShowGUI() 
+	private static void createAndShowGUI()
 	{
 		//Create and set up the window.
 		JFrame frame = new JFrame("U.S. Forest Registry");
 		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE); //TODO: do custom function where it closes model, which needs to be an instance variable of a View object
 
+		//Before showing the main frame, show the initial database connection/login dialog, and connect to the database
+		LabelAndFormat[] connectLabelsAndFormats = new LabelAndFormat[]
+				{
+						new LabelAndFormat(HOSTNAME, null),
+						new LabelAndFormat(PORT, NumberFormat.getIntegerInstance()),
+						new LabelAndFormat(DATABASE_NAME, null),
+						new LabelAndFormat(USERNAME, null),
+						new LabelAndFormat(PASSWORD, null)
+				};
+		Model model = callMethodViaCustomDialog(Model::new, frame, "Connect to Database",
+				connectLabelsAndFormats, "Connect", false);
+
+		if(model == null)
+		{
+			//User X'd out without logging in
+			frame.dispose();
+			return;
+		}
+
 		//Create the menu bar and contained menu items.
 		JMenuBar menuBar = new JMenuBar();
 		menuBar.setOpaque(true);
 
-		JMenu insert = new JMenu("INSERT");
-		JMenuItem addForest = new JMenuItem("Add Forest..."); //TODO: make these strings constants, so they can be the titles of the dialog boxes they create
-		JMenuItem addWorker = new JMenuItem("Add Worker...");
+		JMenu insert = new JMenu(INSERT);
+
+		LabelAndFormat[] addForestLabelsAndFormats = new LabelAndFormat[]
+				{
+						new LabelAndFormat(FOREST_NO, null),
+						new LabelAndFormat(NAME, null),
+						new LabelAndFormat(AREA, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(ACID_LEVEL, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(MBR_XMIN, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(MBR_XMAX, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(MBR_YMIN, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(MBR_YMAX, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(STATE_ABBREVIATION, null)
+				};
+		MenuItemAction<String> addForestAction = new MenuItemAction<>(ADD_FOREST+DOTS, model::addForest, frame,
+				ADD_FOREST, addForestLabelsAndFormats, INSERT, true);
+		JMenuItem addForest = new JMenuItem(addForestAction);
+
+		LabelAndFormat[] addWorkerLabelsAndFormats = new LabelAndFormat[]
+				{
+						new LabelAndFormat(SSN, null),
+						new LabelAndFormat(NAME, null),
+						new LabelAndFormat(RANK, NumberFormat.getIntegerInstance()),
+						new LabelAndFormat(EMPLOYING_STATE, null)
+				};
+		MenuItemAction<String> addWorkerAction = new MenuItemAction<>(ADD_WORKER+DOTS, model::addWorker, frame,
+				ADD_WORKER, addWorkerLabelsAndFormats, INSERT, true);
+		JMenuItem addWorker = new JMenuItem(addWorkerAction);
+
 		JMenuItem addSensor = new JMenuItem("Add Sensor...");
 		insert.add(addForest);
 		insert.add(addWorker);
 		insert.add(addSensor);
 
-		JMenu update = new JMenu("UPDATE");
+		JMenu update = new JMenu(UPDATE);
 		JMenuItem switchWorkersDuties = new JMenuItem("Switch Workers' Duties...");
 		JMenuItem updateSensorStatus = new JMenuItem("Update Sensor Status...");
 		JMenuItem updateForestCoveredArea = new JMenuItem("Update Forest Covered Area...");
@@ -37,7 +83,7 @@ public class View
 		update.add(updateSensorStatus);
 		update.add(updateForestCoveredArea);
 
-		JMenu select = new JMenu("SELECT");
+		JMenu select = new JMenu(QUERY);
 		JMenuItem findTopKBusyWorkers = new JMenuItem("Find Top K Busy Workers...");
 		JMenuItem displaySensorsRanking = new JMenuItem("Display Sensors Ranking");
 		select.add(findTopKBusyWorkers);
@@ -55,18 +101,6 @@ public class View
 		frame.pack();
 		frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
-
-		// Show the initial database connection/login dialog, and connect to the database
-		LabelAndFormat[] connectLabelsAndFormats = new LabelAndFormat[]
-				{
-						new LabelAndFormat(HOSTNAME, null),
-						new LabelAndFormat(PORT, NumberFormat.getIntegerInstance()),
-						new LabelAndFormat(DATABASE_NAME, null),
-						new LabelAndFormat(USERNAME, null),
-						new LabelAndFormat(PASSWORD, null)
-				};
-		Model model = callMethodViaCustomDialog(Model::new, frame, "Connect to Database",
-			connectLabelsAndFormats, "Connect", false);
 	}
 
 	private static <R> R callMethodViaCustomDialog(FunctionThrowsSQLException<R> methodReference, Frame owner,
@@ -93,7 +127,6 @@ public class View
 				try
 				{
 					toReturn = methodReference.apply(dialog.getLabelToTypedText());
-					//TODO: enable menu bar if instantiating model -- that's in a View wrapper function
 					break; //showConfirmation=true, or just show it here
 				}
 				catch(SQLException e)
@@ -123,5 +156,48 @@ public class View
 					}
 				}
 				);
+	}
+
+	private static class MenuItemAction<R> extends AbstractAction
+	{
+		private final FunctionThrowsSQLException<R> methodToCall;
+		private final Frame dialogOwner;
+		private final String dialogTitle;
+		private final LabelAndFormat[] dialogLabelsAndFormats;
+		private final String dialogAffirmativeOptionText;
+		private final boolean dialogHasCancelButton;
+
+		public MenuItemAction(String text, FunctionThrowsSQLException<R> methodToCall, Frame dialogOwner, String dialogTitle,
+							  LabelAndFormat[] dialogLabelsAndFormats, String dialogAffirmativeOptionText,
+							  boolean dialogHasCancelButton)
+		{
+			super(text);
+			this.methodToCall = methodToCall;
+			this.dialogOwner = dialogOwner;
+			this.dialogTitle = dialogTitle;
+			this.dialogLabelsAndFormats = dialogLabelsAndFormats;
+			this.dialogAffirmativeOptionText = dialogAffirmativeOptionText;
+			this.dialogHasCancelButton = dialogHasCancelButton;
+		}
+
+		public void actionPerformed(ActionEvent a)
+		{
+			R confirmation = callMethodViaCustomDialog(methodToCall, dialogOwner, dialogTitle, dialogLabelsAndFormats,
+					dialogAffirmativeOptionText, dialogHasCancelButton);
+
+			if(confirmation != null)
+			{
+				/*if(confirmation instanceof rowset)
+				{
+					//set toDisplay = table view
+				}
+				else
+				{
+					//set toDisplay = confirmation
+					// and change "confirmation" argument to toDisplay
+				}*/
+				JOptionPane.showMessageDialog(dialogOwner, confirmation, "Confirmation", JOptionPane.INFORMATION_MESSAGE);
+			}
+		}
 	}
 }
