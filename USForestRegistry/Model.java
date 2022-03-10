@@ -25,12 +25,12 @@ public class Model
 				attrToVal.get(HOSTNAME), attrToVal.get(PORT), attrToVal.get(DATABASE_NAME));
 
 		con = DriverManager.getConnection(url, attrToVal.get(USERNAME), attrToVal.get(PASSWORD));
-		//con.setAutoCommit(false); //TODO: we need this, and also rollback logic in each function if one of the queries fails
-
+		//TODO: we need rollback logic in each function if one of the queries fails
+		//TODO: alter constraints on schema to implement restrictions from instructions
 		addForestStmt_FOREST = con.prepareStatement(String.format(
 				"INSERT INTO %s VALUES(?, ?, ?, ?, ?, ?, ?, ?)", FOREST));
 		addForestStmt_STATE = con.prepareStatement(String.format(
-				"INSERT INTO %s(%s) VALUES(?)", STATE, ABBREVIATION));
+				"INSERT INTO %s(%s) VALUES(?) ON CONFLICT DO NOTHING", STATE, ABBREVIATION));
 		addForestStmt_COVERAGE = con.prepareStatement(String.format(
 				"INSERT INTO %s VALUES(?, ?, 1, ?)", COVERAGE));
 
@@ -48,11 +48,9 @@ public class Model
 
 	public String addForest(HashMap<String, String> attrToVal) throws SQLException
 	{
-		//TODO: check to see if entered state already exists. not only do you not need a STATE update if it exists, but
-		// you must also add the entered area to the existing coverage in that state. Same goes for entered fields that
-		// are primary keys in other tables, for the remaining functions.
+		//TODO: check to see if entered state already exists. You don't need a STATE update if it exists.
+		// Same goes for entered fields that are primary keys in other tables, for the remaining functions.
 
-		//TODO: what if string field is too long? it doesn't throw an error??
 		addForestStmt_FOREST.setString(1, attrToVal.get(FOREST_NO));
 		addForestStmt_FOREST.setString(2, attrToVal.get(NAME));
 		addForestStmt_FOREST.setDouble(3, Double.parseDouble(attrToVal.get(AREA)));
@@ -68,9 +66,20 @@ public class Model
 		addForestStmt_COVERAGE.setString(2, attrToVal.get(STATE_ABBREVIATION));
 		addForestStmt_COVERAGE.setDouble(3, Double.parseDouble(attrToVal.get(AREA)));
 
-		addForestStmt_FOREST.executeUpdate();
-		addForestStmt_STATE.executeUpdate();
-		addForestStmt_COVERAGE.executeUpdate();
+		con.setAutoCommit(false);
+		try
+		{
+			addForestStmt_FOREST.executeUpdate();
+			addForestStmt_STATE.executeUpdate();
+			addForestStmt_COVERAGE.executeUpdate();
+			con.commit();
+		}
+		catch(SQLException e)
+		{
+			con.rollback(); // undo the staged changes made so far
+			throw e;		// report the original error
+		}
+		con.setAutoCommit(true);
 
 		return attrToVal.get(NAME) + " added successfully.";
 	}

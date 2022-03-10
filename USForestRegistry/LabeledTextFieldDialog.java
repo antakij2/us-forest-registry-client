@@ -5,7 +5,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.beans.*;
 import java.util.LinkedHashMap;
-
+//TODO: limit varchar field lengths somehow because error messages when they are too long don't say which field was too long
 class LabeledTextFieldDialog extends JDialog implements ActionListener, PropertyChangeListener
 {
 	private static final String CANCEL = "Cancel";
@@ -127,7 +127,7 @@ class LabeledTextFieldDialog extends JDialog implements ActionListener, Property
 				for(String label : labelToTypedText.keySet())
 				{
 					String textOfThisField = textFields[index].getText();
-					if(textFields[index] instanceof JFormattedTextField && //TODO: just require value for all boxes?
+					if(textFields[index] instanceof JFormattedTextField &&
 							(textOfThisField == null || textOfThisField.trim().equals("")))
 					{
 						// Show a warning message about the box that needs a value, and let the user fill it in
