@@ -22,6 +22,8 @@ public class StringConstants
 	public static final String MAINTAINER = "maintainer";
 	public static final String LAST_READ = "last_read";
 	public static final String ENERGY = "energy";
+	public static final String WORKER_A_NAME = "Worker A's name";
+	public static final String WORKER_B_NAME = "Worker B's name";
 	public static final String REPORT_TIME = "report_time";
 	public static final String TEMPERATURE = "temperature";
 	public static final String PERCENTAGE = "percentage";

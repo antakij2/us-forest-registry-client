@@ -5,7 +5,8 @@ import java.awt.*;
 import java.awt.event.*;
 import java.beans.*;
 import java.util.LinkedHashMap;
-//TODO: limit varchar field lengths somehow because error messages when they are too long don't say which field was too long
+//TODO: limit varchar field lengths somehow because error messages when they are too long don't say which field was too long.
+// or just include (abbreviation) in string label. Same with YYYY-MM-DD HH:MM:SS format for timestamps.
 class LabeledTextFieldDialog extends JDialog implements ActionListener, PropertyChangeListener
 {
 	private static final String CANCEL = "Cancel";

@@ -5,8 +5,11 @@ import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.sql.SQLException;
 import java.text.NumberFormat;
-import static USForestRegistry.StringConstants.*;
+import java.text.SimpleDateFormat;
+import java.util.LinkedHashMap;
 
+import static USForestRegistry.StringConstants.*;
+//TODO: create the max amount of each formatter type that is shown in a dialog box at once, and use those as pools
 public class View 
 {
 	/*
@@ -19,7 +22,7 @@ public class View
 		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE); //TODO: do custom function where it closes model, which needs to be an instance variable of a View object
 
 		//Before showing the main frame, show the initial database connection/login dialog, and connect to the database
-		LabelAndFormat[] connectLabelsAndFormats = new LabelAndFormat[]
+		/*LabelAndFormat[] connectLabelsAndFormats = new LabelAndFormat[]
 				{
 						new LabelAndFormat(HOSTNAME, null),
 						new LabelAndFormat(PORT, NumberFormat.getIntegerInstance()),
@@ -28,7 +31,23 @@ public class View
 						new LabelAndFormat(PASSWORD, null)
 				};
 		Model model = callMethodViaCustomDialog(Model::new, frame, "Connect to Database",
-				connectLabelsAndFormats, "Connect", false);
+				connectLabelsAndFormats, "Connect", false);*/
+		//TODO: remove this autologin after debugging
+		LinkedHashMap<String, String> loginCredentials = new LinkedHashMap<>();
+		loginCredentials.put(HOSTNAME, "localhost");
+		loginCredentials.put(PORT, "5432");
+		loginCredentials.put(DATABASE_NAME, "pset1");
+		loginCredentials.put(USERNAME, "postgres");
+		loginCredentials.put(PASSWORD, "pass");
+		Model model = null;
+		try
+		{
+			model = new Model(loginCredentials);
+		}
+		catch (SQLException e)
+		{
+			e.printStackTrace();
+		}
 
 		if(model == null)
 		{
@@ -43,6 +62,8 @@ public class View
 
 		JMenu insert = new JMenu(INSERT);
 
+		// These are the text fields, and the format of inputs permitted in those text fields,
+		// that the dialog for this action will present to the user to fill in
 		LabelAndFormat[] addForestLabelsAndFormats = new LabelAndFormat[]
 				{
 						new LabelAndFormat(FOREST_NO, null),
@@ -70,13 +91,37 @@ public class View
 				ADD_WORKER, addWorkerLabelsAndFormats, INSERT, true);
 		JMenuItem addWorker = new JMenuItem(addWorkerAction);
 
-		JMenuItem addSensor = new JMenuItem("Add Sensor...");
+		LabelAndFormat[] addSensorLabelsAndFormats = new LabelAndFormat[]
+				{
+						new LabelAndFormat(SENSOR_ID, NumberFormat.getIntegerInstance()),
+						new LabelAndFormat(X, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(Y, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(LAST_CHARGED, new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")),
+						new LabelAndFormat(MAINTAINER, null),
+						new LabelAndFormat(LAST_READ, new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")),
+						new LabelAndFormat(ENERGY, NumberFormat.getNumberInstance())
+				};
+		MenuItemAction<String> addSensorAction = new MenuItemAction<>(ADD_SENSOR+DOTS, model::addSensor, frame,
+				ADD_SENSOR, addSensorLabelsAndFormats, INSERT, true);
+		JMenuItem addSensor = new JMenuItem(addSensorAction);
+
 		insert.add(addForest);
 		insert.add(addWorker);
 		insert.add(addSensor);
 
+
 		JMenu update = new JMenu(UPDATE);
-		JMenuItem switchWorkersDuties = new JMenuItem("Switch Workers' Duties...");
+
+		LabelAndFormat[] switchWorkersDutiesLabelsAndFormats = new LabelAndFormat[]
+				{
+						new LabelAndFormat(WORKER_A_NAME, null),
+						new LabelAndFormat(WORKER_B_NAME, null)
+				};
+		MenuItemAction<String> addSwitchWorkersDutiesAction = new MenuItemAction<>(SWITCH_WORKERS_DUTIES + DOTS,
+				model::switchWorkersDuties, frame, SWITCH_WORKERS_DUTIES, switchWorkersDutiesLabelsAndFormats, UPDATE,
+				true);
+		JMenuItem switchWorkersDuties = new JMenuItem(addSwitchWorkersDutiesAction);
+
 		JMenuItem updateSensorStatus = new JMenuItem("Update Sensor Status...");
 		JMenuItem updateForestCoveredArea = new JMenuItem("Update Forest Covered Area...");
 		update.add(switchWorkersDuties);
@@ -103,7 +148,7 @@ public class View
 		frame.setVisible(true);
 	}
 
-	private static <R> R callMethodViaCustomDialog(FunctionThrowsSQLException<R> methodReference, Frame owner,
+	private static <R> R callMethodViaCustomDialog(FunctionThrowsException<R> methodReference, Frame owner,
 												   String title, LabelAndFormat[] labelsAndFormats,
 												   String affirmativeOptionText, boolean hasCancelButton)
 	{
@@ -129,7 +174,7 @@ public class View
 					toReturn = methodReference.apply(dialog.getLabelToTypedText());
 					break; //showConfirmation=true, or just show it here
 				}
-				catch(SQLException e)
+				catch(Exception e)
 				{
 					JOptionPane.showMessageDialog(dialog, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
 					dialog.revive();
@@ -160,14 +205,14 @@ public class View
 
 	private static class MenuItemAction<R> extends AbstractAction
 	{
-		private final FunctionThrowsSQLException<R> methodToCall;
+		private final FunctionThrowsException<R> methodToCall;
 		private final Frame dialogOwner;
 		private final String dialogTitle;
 		private final LabelAndFormat[] dialogLabelsAndFormats;
 		private final String dialogAffirmativeOptionText;
 		private final boolean dialogHasCancelButton;
 
-		public MenuItemAction(String text, FunctionThrowsSQLException<R> methodToCall, Frame dialogOwner, String dialogTitle,
+		public MenuItemAction(String text, FunctionThrowsException<R> methodToCall, Frame dialogOwner, String dialogTitle,
 							  LabelAndFormat[] dialogLabelsAndFormats, String dialogAffirmativeOptionText,
 							  boolean dialogHasCancelButton)
 		{
