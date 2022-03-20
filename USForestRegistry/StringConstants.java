@@ -4,6 +4,7 @@ public class StringConstants
 {
 	public static final String FOREST_NO = "forest_no";
 	public static final String NAME = "name";
+	public static final String FOREST_NAME = "forest_name";
 	public static final String AREA = "area";
 	public static final String ACID_LEVEL = "acid_level";
 	public static final String MBR_XMIN = "mbr_xmin";
@@ -18,6 +19,7 @@ public class StringConstants
 	public static final String SENSOR_ID = "sensor_id";
 	public static final String X = "x";
 	public static final String Y = "y";
+	public static final String K = "K";
 	public static final String LAST_CHARGED = "last_charged";
 	public static final String MAINTAINER = "maintainer";
 	public static final String LAST_READ = "last_read";

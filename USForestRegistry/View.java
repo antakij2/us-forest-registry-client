@@ -2,11 +2,14 @@ package USForestRegistry;
 
 import java.awt.*;
 import javax.swing.*;
+import javax.xml.transform.Result;
 import java.awt.event.ActionEvent;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.LinkedHashMap;
+import java.util.HashMap;
 
 import static USForestRegistry.StringConstants.*;
 //TODO: create the max amount of each formatter type that is shown in a dialog box at once, and use those as pools
@@ -117,20 +120,55 @@ public class View
 						new LabelAndFormat(WORKER_A_NAME, null),
 						new LabelAndFormat(WORKER_B_NAME, null)
 				};
-		MenuItemAction<String> addSwitchWorkersDutiesAction = new MenuItemAction<>(SWITCH_WORKERS_DUTIES + DOTS,
+		MenuItemAction<String> switchWorkersDutiesAction = new MenuItemAction<>(SWITCH_WORKERS_DUTIES + DOTS,
 				model::switchWorkersDuties, frame, SWITCH_WORKERS_DUTIES, switchWorkersDutiesLabelsAndFormats, UPDATE,
 				true);
-		JMenuItem switchWorkersDuties = new JMenuItem(addSwitchWorkersDutiesAction);
+		JMenuItem switchWorkersDuties = new JMenuItem(switchWorkersDutiesAction);
 
-		JMenuItem updateSensorStatus = new JMenuItem("Update Sensor Status...");
-		JMenuItem updateForestCoveredArea = new JMenuItem("Update Forest Covered Area...");
+		LabelAndFormat[] updateSensorStatusLabelsAndFormats = new LabelAndFormat[]
+				{
+						new LabelAndFormat(X, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(Y, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(LAST_CHARGED, new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")),
+						new LabelAndFormat(ENERGY, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(TEMPERATURE, NumberFormat.getNumberInstance())
+				};
+		MenuItemAction<String> updateSensorStatusAction = new MenuItemAction<>(UPDATE_SENSOR_STATUS + DOTS,
+				model::updateSensorStatus, frame, UPDATE_SENSOR_STATUS, updateSensorStatusLabelsAndFormats, UPDATE,
+				true);
+		JMenuItem updateSensorStatus = new JMenuItem(updateSensorStatusAction);
+
+		LabelAndFormat[] updateForestCoveredAreaLabelsAndformats = new LabelAndFormat[]
+				{
+						new LabelAndFormat(FOREST_NAME, null),
+						new LabelAndFormat(AREA, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(STATE_ABBREVIATION, null)
+				};
+		MenuItemAction<String> updateForestCoveredAreaAction = new MenuItemAction<>(UPDATE_FOREST_COVERED_AREA + DOTS,
+				model::updateForestCoveredArea, frame, UPDATE_FOREST_COVERED_AREA, updateForestCoveredAreaLabelsAndformats,
+				UPDATE, true);
+		JMenuItem updateForestCoveredArea = new JMenuItem(updateForestCoveredAreaAction);
+
 		update.add(switchWorkersDuties);
 		update.add(updateSensorStatus);
 		update.add(updateForestCoveredArea);
 
+
 		JMenu select = new JMenu(QUERY);
-		JMenuItem findTopKBusyWorkers = new JMenuItem("Find Top K Busy Workers...");
-		JMenuItem displaySensorsRanking = new JMenuItem("Display Sensors Ranking");
+
+		LabelAndFormat[] findTopKBusyWorkersLabelsAndFormats = new LabelAndFormat[]
+				{
+						new LabelAndFormat(K, NumberFormat.getIntegerInstance())
+				};
+		MenuItemAction<ResultSet> findTopKBusyWorkersAction = new MenuItemAction<>(FIND_TOP_K_BUSY_WORKERS + DOTS,
+				model::findTopKBusyWorkers, frame, FIND_TOP_K_BUSY_WORKERS, findTopKBusyWorkersLabelsAndFormats, QUERY,
+				true);
+		JMenuItem findTopKBusyWorkers = new JMenuItem(findTopKBusyWorkersAction);
+
+		MenuItemAction<ResultSet> displaySensorsRankingAction = new MenuItemAction<>(DISPLAY_SENSORS_RANKING + DOTS,
+				model::displaySensorsRanking, frame, DISPLAY_SENSORS_RANKING, null, QUERY, true);
+		JMenuItem displaySensorsRanking = new JMenuItem(displaySensorsRankingAction);
+
 		select.add(findTopKBusyWorkers);
 		select.add(displaySensorsRanking);
 
@@ -140,14 +178,41 @@ public class View
 		frame.setJMenuBar(menuBar);
 
 		//Create table viewing area.
-		//TODO: frame.getContentPane().add(tableViewingArea, BorderLayout.CENTER);
+		HashMap<String, FunctionThrowsException<ResultSet>> tableToFetchMethod = new HashMap<>();
+		tableToFetchMethod.put(FOREST, model::fetchForest);
+		tableToFetchMethod.put(COVERAGE, model::fetchCoverage);
+		tableToFetchMethod.put(INTERSECTION, model::fetchIntersection);
+		tableToFetchMethod.put(REPORT, model::fetchReport);
+		tableToFetchMethod.put(ROAD, model::fetchRoad);
+		tableToFetchMethod.put(SENSOR, model::fetchSensor);
+		tableToFetchMethod.put(STATE, model::fetchState);
+		tableToFetchMethod.put(WORKER, model::fetchWorker);
+
+		try
+		{
+			CustomTableModel tableModel = new CustomTableModel(model.fetchForest(null));
+			JTable databaseViewer = new JTable();
+			databaseViewer.setModel(tableModel);
+			JScrollPane scrollPane = new JScrollPane(databaseViewer);
+			databaseViewer.setFillsViewportHeight(true);
+			frame.getContentPane().add(scrollPane); //TODO: can only call this once, so must make it contain multiple panels
+
+			String[] tableNames = {FOREST, COVERAGE, INTERSECTION, REPORT, ROAD, SENSOR, STATE, WORKER};
+			JComboBox<String> comboBox = new JComboBox<>(tableNames);
+			frame.getContentPane().add(comboBox);
+		}
+		catch(SQLException e)
+		{
+			e.printStackTrace();
+		}
+
 
 		//Display the window.
 		frame.pack();
 		frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
 	}
-
+	//TODO: alter so you can have menu item which has no dialog, just executes method
 	private static <R> R callMethodViaCustomDialog(FunctionThrowsException<R> methodReference, Frame owner,
 												   String title, LabelAndFormat[] labelsAndFormats,
 												   String affirmativeOptionText, boolean hasCancelButton)
@@ -172,7 +237,7 @@ public class View
 				try
 				{
 					toReturn = methodReference.apply(dialog.getLabelToTypedText());
-					break; //showConfirmation=true, or just show it here
+					break;
 				}
 				catch(Exception e)
 				{
@@ -182,7 +247,7 @@ public class View
 			}
 			else //user hit Cancel, or X'd out the window
 			{
-				break; //showConfirmation=false
+				break;
 			}
 		}
 
@@ -235,6 +300,7 @@ public class View
 				/*if(confirmation instanceof rowset)
 				{
 					//set toDisplay = table view
+					// change "Confirmation" text to be "Results" here
 				}
 				else
 				{

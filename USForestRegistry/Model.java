@@ -1,12 +1,9 @@
 package USForestRegistry;
 
-import sun.rmi.server.InactiveGroupException;
-
 import java.sql.*;
 import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.HashMap;
 import static USForestRegistry.StringConstants.*;
 
@@ -18,17 +15,29 @@ public class Model
 
 	private final Connection con;
 	private final PreparedStatement addForestStmt_FOREST;
-	private final PreparedStatement addForestStmt_STATE;
+	private final PreparedStatement maybeAddNewState;
 	private final PreparedStatement addForestStmt_COVERAGE;
 	private final PreparedStatement addWorkerStmt;
 	private final PreparedStatement addSensorStmt;
 	private final PreparedStatement switchWorkersDutiesCheckStateStmt;
 	private final PreparedStatement switchWorkersDutiesQuerySensorIDStmt;
 	private final PreparedStatement switchWorkersDutiesSetMaintainerOnSSNStmt;
-	//private final PreparedStatement updateSensorStatusStmt;
-	private final PreparedStatement updateForestCoveredAreaStmt;
-	//private final PreparedStatement findTopKBusyWorkersStmt;
-	//private final PreparedStatement displaySensorsRankingStmt;
+	private final PreparedStatement updateSensorStatusQueryStmt;
+	private final PreparedStatement updateSensorStatusStmt_SENSOR;
+	private final PreparedStatement updateSensorStatusStmt_REPORT;
+	private final PreparedStatement updateForestCoveredAreaQueryStmt;
+	private final PreparedStatement updateForestCoveredAreaStmt_FOREST;
+	private final PreparedStatement updateForestCoveredArea_COVERAGE;
+	private final PreparedStatement findTopKBusyWorkersStmt;
+	private final PreparedStatement displaySensorsRankingStmt;
+	private final PreparedStatement fetchForestStmt;
+	private final PreparedStatement fetchCoverageStmt;
+	private final PreparedStatement fetchIntersectionStmt;
+	private final PreparedStatement fetchReportStmt;
+	private final PreparedStatement fetchRoadStmt;
+	private final PreparedStatement fetchSensorStmt;
+	private final PreparedStatement fetchStateStmt;
+	private final PreparedStatement fetchWorkerStmt;
 
 	public Model(HashMap<String, String> attrToVal) throws SQLException
 	{
@@ -56,18 +65,14 @@ public class Model
 
 		con = DriverManager.getConnection(url, attrToVal.get(USERNAME), attrToVal.get(PASSWORD));
 		//TODO: alter constraints on schema to implement restrictions from instructions
-		addForestStmt_FOREST = con.prepareStatement(String.format(
-				"INSERT INTO %s VALUES(?, ?, ?, ?, ?, ?, ?, ?)", FOREST));
-		addForestStmt_STATE = con.prepareStatement(String.format(
-				"INSERT INTO %s(%s) VALUES(?) ON CONFLICT DO NOTHING", STATE, ABBREVIATION));
-		addForestStmt_COVERAGE = con.prepareStatement(String.format(
-				"INSERT INTO %s VALUES(?, ?, 1, ?)", COVERAGE));
+		addForestStmt_FOREST = con.prepareStatement("INSERT INTO forest VALUES(?, ?, ?, ?, ?, ?, ?, ?)");
+		maybeAddNewState = con.prepareStatement(String.format(
+				"INSERT INTO state(%s) VALUES(?) ON CONFLICT DO NOTHING", ABBREVIATION));
+		addForestStmt_COVERAGE = con.prepareStatement("INSERT INTO COVERAGE VALUES(?, ?, 1, ?)");
 
-		addWorkerStmt = con.prepareStatement(String.format(
-				"INSERT INTO %s VALUES(?, ?, ?, ?)", WORKER));
+		addWorkerStmt = con.prepareStatement("INSERT INTO worker VALUES(?, ?, ?, ?)");
 
-		addSensorStmt = con.prepareStatement(String.format(
-				"INSERT INTO %s VALUES(?, ?, ?, ?, ?, ?, ?)", SENSOR));
+		addSensorStmt = con.prepareStatement("INSERT INTO sensor VALUES(?, ?, ?, ?, ?, ?, ?)");
 
 		switchWorkersDutiesCheckStateStmt = con.prepareStatement(String.format(
 				"SELECT %s, %s FROM worker WHERE %s in (?, ?)", SSN, EMPLOYING_STATE, NAME));
@@ -76,20 +81,41 @@ public class Model
 		switchWorkersDutiesSetMaintainerOnSSNStmt = con.prepareStatement(String.format(
 				"UPDATE sensor SET %s=? WHERE %s=?", MAINTAINER, MAINTAINER));
 
-		//updateSensorStatusStmt = con.prepareStatement("UPDATE TABLE sensor SET(energy=?, " +
-		//		"last_charged=?, )");
-		updateForestCoveredAreaStmt = con.prepareStatement("UPDATE TABLE forest SET(area=?, " +
-				"state_abbreviation=?) WHERE name=?");
-		//more for updateForestCoveredAreaStmt, to change Coverage table
-		//findTopKBusyWorkersStmt
-		//displaySensorsRankingStmt
+		updateSensorStatusQueryStmt = con.prepareStatement(String.format(
+				"SELECT %s FROM sensor WHERE %s=? AND %s=?", SENSOR_ID, X, Y));
+		updateSensorStatusStmt_SENSOR = con.prepareStatement(String.format(
+				"UPDATE sensor SET %s=?, %s=localtimestamp(0), %s=? WHERE %s=?", LAST_CHARGED, LAST_READ, ENERGY, SENSOR_ID));
+		updateSensorStatusStmt_REPORT = con.prepareStatement("INSERT INTO report VALUES(?, localtimestamp(0), ?)");
+
+		updateForestCoveredAreaQueryStmt = con.prepareStatement(String.format(
+				"SELECT %s FROM forest WHERE %s=?", FOREST_NO, NAME));
+		updateForestCoveredAreaStmt_FOREST = con.prepareStatement(String.format(
+				"UPDATE forest SET %s=? WHERE %s=?", AREA, FOREST_NO));
+		updateForestCoveredArea_COVERAGE = con.prepareStatement(String.format(
+				"UPDATE coverage SET %s=?, percentage=1, %s=? WHERE %s=?", STATE, AREA, FOREST_NO));
+
+		findTopKBusyWorkersStmt = con.prepareStatement(String.format(
+				"SELECT %s, %s, COUNT(*) sensors_to_charge FROM worker JOIN sensor ON %s=%s AND" +
+						" %s <= 2 GROUP BY %s, %s ORDER BY sensors_to_charge DESC LIMIT ?",
+				SSN, NAME, SSN, MAINTAINER, ENERGY, SSN, NAME));
+
+		displaySensorsRankingStmt = con.prepareStatement(String.format(
+				"SELECT sensor.%s, %s, %s, COUNT(*) reports_generated FROM sensor JOIN report ON " +
+						"sensor.%s=report.%s GROUP BY sensor.%s, %s, %s ORDER BY reports_generated DESC",
+				SENSOR_ID, X, Y, SENSOR_ID, SENSOR_ID, SENSOR_ID, X, Y));
+
+		fetchForestStmt = con.prepareStatement("SELECT * FROM forest", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
+		fetchCoverageStmt = con.prepareStatement("SELECT * FROM coverage", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
+		fetchIntersectionStmt = con.prepareStatement("SELECT * FROM intersection", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
+		fetchReportStmt = con.prepareStatement("SELECT * FROM report", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
+		fetchRoadStmt = con.prepareStatement("SELECT * FROM road", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
+		fetchSensorStmt = con.prepareStatement("SELECT * FROM sensor", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
+		fetchStateStmt = con.prepareStatement("SELECT * FROM state", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
+		fetchWorkerStmt = con.prepareStatement("SELECT * FROM worker", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
 	}
 
 	public String addForest(HashMap<String, String> attrToVal) throws SQLException
 	{
-		//TODO: check to see if entered state already exists. You don't need a STATE update if it exists.
-		// Same goes for entered fields that are primary keys in other tables, for the remaining functions.
-
 		addForestStmt_FOREST.setString(1, attrToVal.get(FOREST_NO));
 		addForestStmt_FOREST.setString(2, attrToVal.get(NAME));
 		addForestStmt_FOREST.setDouble(3, Double.parseDouble(attrToVal.get(AREA)));
@@ -99,13 +125,13 @@ public class Model
 		addForestStmt_FOREST.setDouble(7, Double.parseDouble(attrToVal.get(MBR_YMIN)));
 		addForestStmt_FOREST.setDouble(8, Double.parseDouble(attrToVal.get(MBR_YMAX)));
 
-		addForestStmt_STATE.setString(1, attrToVal.get(STATE_ABBREVIATION));
+		maybeAddNewState.setString(1, attrToVal.get(STATE_ABBREVIATION));
 
 		addForestStmt_COVERAGE.setString(1, attrToVal.get(FOREST_NO));
 		addForestStmt_COVERAGE.setString(2, attrToVal.get(STATE_ABBREVIATION));
 		addForestStmt_COVERAGE.setDouble(3, Double.parseDouble(attrToVal.get(AREA)));
 
-		executeStatements(addForestStmt_FOREST, addForestStmt_STATE, addForestStmt_COVERAGE);
+		executeStatements(addForestStmt_FOREST, maybeAddNewState, addForestStmt_COVERAGE);
 		return "Forest \"" + attrToVal.get(NAME) + "\" added successfully.";
 	}
 
@@ -173,7 +199,7 @@ public class Model
 		if(!states[0].equals(states[1]))
 		{
 			// if the employing states aren't the same, the workers can't switch duties
-			throw new Exception("The employing states of the supplied workers are different. " +
+			throw new Exception("The employing states of the supplied workers are different.\n" +
 					"The workers cannot switch duties.");
 		}
 
@@ -212,6 +238,143 @@ public class Model
 				" have successfully switched duties.";
 	}
 
+	public String updateSensorStatus(HashMap<String, String> attrToVal) throws Exception
+	{
+		// Look up the sensor_id associated with the user-supplied X and Y coordinates
+		updateSensorStatusQueryStmt.setDouble(1, Double.parseDouble(attrToVal.get(X)));
+		updateSensorStatusQueryStmt.setDouble(2, Double.parseDouble(attrToVal.get(Y)));
+		executeStatements(updateSensorStatusQueryStmt);
+		ResultSet rs = updateSensorStatusQueryStmt.getResultSet();
+		int sensorId;
+		if(rs.next())
+		{
+			sensorId = rs.getInt(1);
+		}
+		else
+		{
+			throw new Exception("No sensor with the supplied coordinates exists.");
+		}
+
+		// Update the sensor with the user-supplied time of last charge and energy level,
+		// at the current time
+		java.util.Date date = DATE_INSTANCES[0].parse(attrToVal.get(LAST_CHARGED));
+		Timestamp timestamp = new Timestamp(date.getTime());
+		updateSensorStatusStmt_SENSOR.setTimestamp(1, timestamp);
+		updateSensorStatusStmt_SENSOR.setDouble(2, Double.parseDouble(attrToVal.get(ENERGY)));
+		updateSensorStatusStmt_SENSOR.setDouble(3, sensorId);
+
+		// Insert a new report with the user-supplied temperature, at the current time
+		double temp = Double.parseDouble(attrToVal.get(TEMPERATURE));
+		updateSensorStatusStmt_REPORT.setInt(1, sensorId);
+		updateSensorStatusStmt_REPORT.setDouble(2, temp);
+
+		executeStatements(updateSensorStatusStmt_SENSOR, updateSensorStatusStmt_REPORT);
+
+		String returnMessage = "Sensor updated successfully.\n";
+		if(temp > 100.0)
+		{
+			returnMessage += "EMERGENCY! This sensor just reported a temperature of " + temp + "!";
+		}
+		else
+		{
+			returnMessage += "No emergency reported.";
+		}
+
+		return returnMessage;
+	}
+
+	public String updateForestCoveredArea(HashMap<String, String> attrToVal) throws Exception
+	{
+		// Look up the forest_no associated with the user-supplied forest name
+		updateForestCoveredAreaQueryStmt.setString(1, attrToVal.get(FOREST_NAME));
+		executeStatements(updateForestCoveredAreaQueryStmt);
+		ResultSet rs = updateForestCoveredAreaQueryStmt.getResultSet();
+		String forestNo;
+		if(rs.next())
+		{
+			forestNo = rs.getString(1);
+		}
+		else
+		{
+			throw new Exception("No forest with the supplied name exists.");
+		}
+
+		// Update the forest, coverage, and state tables with the user-supplied input
+		updateForestCoveredAreaStmt_FOREST.setDouble(1, Double.parseDouble(attrToVal.get(AREA)));
+		updateForestCoveredAreaStmt_FOREST.setString(2, forestNo);
+
+		updateForestCoveredArea_COVERAGE.setString(1, attrToVal.get(STATE_ABBREVIATION));
+		updateForestCoveredArea_COVERAGE.setDouble(2, Double.parseDouble(attrToVal.get(AREA)));
+		updateForestCoveredArea_COVERAGE.setString(3, forestNo);
+
+		maybeAddNewState.setString(1, STATE_ABBREVIATION);
+
+		executeStatements(updateForestCoveredAreaStmt_FOREST, updateForestCoveredArea_COVERAGE, maybeAddNewState);
+		return "Forest \"" + attrToVal.get(FOREST_NAME) + "\" successfully updated.";
+	}
+
+	public ResultSet findTopKBusyWorkers(HashMap<String, String> attrToVal) throws SQLException
+	{
+		findTopKBusyWorkersStmt.setInt(1, Integer.parseInt(attrToVal.get(K)));
+
+		executeStatements(findTopKBusyWorkersStmt);
+		return findTopKBusyWorkersStmt.getResultSet();
+	}
+
+	public ResultSet displaySensorsRanking(HashMap<String, String> attrToVal) throws SQLException
+	{
+		executeStatements(displaySensorsRankingStmt);
+		return displaySensorsRankingStmt.getResultSet();
+	}
+
+	public ResultSet fetchForest(HashMap<String, String> arg) throws SQLException
+	{
+		executeStatements(fetchForestStmt);
+		return fetchForestStmt.getResultSet();
+	}
+
+	public ResultSet fetchCoverage(HashMap<String, String> arg) throws SQLException
+	{
+		executeStatements(fetchCoverageStmt);
+		return fetchCoverageStmt.getResultSet();
+	}
+
+	public ResultSet fetchIntersection(HashMap<String, String> arg) throws SQLException
+	{
+		executeStatements(fetchIntersectionStmt);
+		return fetchIntersectionStmt.getResultSet();
+	}
+
+	public ResultSet fetchReport(HashMap<String, String> arg) throws SQLException
+	{
+		executeStatements(fetchReportStmt);
+		return fetchReportStmt.getResultSet();
+	}
+
+	public ResultSet fetchRoad(HashMap<String, String> arg) throws SQLException
+	{
+		executeStatements(fetchRoadStmt);
+		return fetchRoadStmt.getResultSet();
+	}
+
+	public ResultSet fetchSensor(HashMap<String, String> arg) throws SQLException
+	{
+		executeStatements(fetchSensorStmt);
+		return fetchSensorStmt.getResultSet();
+	}
+
+	public ResultSet fetchState(HashMap<String, String> arg) throws SQLException
+	{
+		executeStatements(fetchStateStmt);
+		return fetchStateStmt.getResultSet();
+	}
+
+	public ResultSet fetchWorker(HashMap<String, String> arg) throws SQLException
+	{
+		executeStatements(fetchWorkerStmt);
+		return fetchWorkerStmt.getResultSet();
+	}
+
 	private void executeStatements(PreparedStatement... statements) throws SQLException
 	{
 		con.setAutoCommit(false);
@@ -233,9 +396,28 @@ public class Model
 	public void closeConnection() throws SQLException
 	{
 		addForestStmt_FOREST.close();
-		addForestStmt_STATE.close();
 		addForestStmt_COVERAGE.close();
-		//TODO: rest of statements
+		addWorkerStmt.close();
+		addSensorStmt.close();
+		switchWorkersDutiesCheckStateStmt.close();
+		switchWorkersDutiesQuerySensorIDStmt.close();
+		switchWorkersDutiesSetMaintainerOnSSNStmt.close();
+		updateSensorStatusQueryStmt.close();
+		updateSensorStatusStmt_SENSOR.close();
+		updateSensorStatusStmt_REPORT.close();
+		updateForestCoveredAreaQueryStmt.close();
+		updateForestCoveredAreaStmt_FOREST.close();
+		findTopKBusyWorkersStmt.close();
+		displaySensorsRankingStmt.close();
+		fetchForestStmt.close();
+		fetchCoverageStmt.close();
+		fetchIntersectionStmt.close();
+		fetchReportStmt.close();
+		fetchRoadStmt.close();
+		fetchSensorStmt.close();
+		fetchStateStmt.close();
+		fetchWorkerStmt.close();
+
 		con.close();
 	}
 }
