@@ -329,49 +329,49 @@ public class Model
 		return displaySensorsRankingStmt.getResultSet();
 	}
 
-	public ResultSet fetchForest(HashMap<String, String> arg) throws SQLException
+	public ResultSet fetchForest() throws SQLException
 	{
 		executeStatements(fetchForestStmt);
 		return fetchForestStmt.getResultSet();
 	}
 
-	public ResultSet fetchCoverage(HashMap<String, String> arg) throws SQLException
+	public ResultSet fetchCoverage() throws SQLException
 	{
 		executeStatements(fetchCoverageStmt);
 		return fetchCoverageStmt.getResultSet();
 	}
 
-	public ResultSet fetchIntersection(HashMap<String, String> arg) throws SQLException
+	public ResultSet fetchIntersection() throws SQLException
 	{
 		executeStatements(fetchIntersectionStmt);
 		return fetchIntersectionStmt.getResultSet();
 	}
 
-	public ResultSet fetchReport(HashMap<String, String> arg) throws SQLException
+	public ResultSet fetchReport() throws SQLException
 	{
 		executeStatements(fetchReportStmt);
 		return fetchReportStmt.getResultSet();
 	}
 
-	public ResultSet fetchRoad(HashMap<String, String> arg) throws SQLException
+	public ResultSet fetchRoad() throws SQLException
 	{
 		executeStatements(fetchRoadStmt);
 		return fetchRoadStmt.getResultSet();
 	}
 
-	public ResultSet fetchSensor(HashMap<String, String> arg) throws SQLException
+	public ResultSet fetchSensor() throws SQLException
 	{
 		executeStatements(fetchSensorStmt);
 		return fetchSensorStmt.getResultSet();
 	}
 
-	public ResultSet fetchState(HashMap<String, String> arg) throws SQLException
+	public ResultSet fetchState() throws SQLException
 	{
 		executeStatements(fetchStateStmt);
 		return fetchStateStmt.getResultSet();
 	}
 
-	public ResultSet fetchWorker(HashMap<String, String> arg) throws SQLException
+	public ResultSet fetchWorker() throws SQLException
 	{
 		executeStatements(fetchWorkerStmt);
 		return fetchWorkerStmt.getResultSet();

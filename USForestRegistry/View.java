@@ -4,6 +4,7 @@ import java.awt.*;
 import javax.swing.*;
 import javax.swing.table.TableModel;
 import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.sql.ResultSet;
@@ -15,9 +16,11 @@ import java.util.HashMap;
 
 import static USForestRegistry.StringConstants.*;
 //TODO: create the max amount of each formatter type that is shown in a dialog box at once, and use those as pools
-public class View 
+public class View implements ActionListener
 {
-	Model model = null;
+	Model model;
+	JComboBox<String> cb;
+	JTable databaseViewer;
 
 	/*
 	* Create the GUI and show it. 
@@ -183,48 +186,38 @@ public class View
 		menuBar.add(select);
 		frame.setJMenuBar(menuBar);
 
-		//Create table viewing area.
-		HashMap<String, FunctionThrowsException<ResultSet>> tableToFetchMethod = new HashMap<>();
-		tableToFetchMethod.put(FOREST, model::fetchForest);
-		tableToFetchMethod.put(COVERAGE, model::fetchCoverage);
-		tableToFetchMethod.put(INTERSECTION, model::fetchIntersection);
-		tableToFetchMethod.put(REPORT, model::fetchReport);
-		tableToFetchMethod.put(ROAD, model::fetchRoad);
-		tableToFetchMethod.put(SENSOR, model::fetchSensor);
-		tableToFetchMethod.put(STATE, model::fetchState);
-		tableToFetchMethod.put(WORKER, model::fetchWorker);
-
+		CustomTableModel tableModel = null;
 		try
 		{
-			CustomTableModel tableModel = new CustomTableModel(model.fetchForest(null));
-			JTable databaseViewer = new JTable();
-			databaseViewer.setModel(tableModel);
-			JScrollPane scrollPane = new JScrollPane(databaseViewer);
-			scrollPane.setPreferredSize(new Dimension(700, 200));
-			databaseViewer.setFillsViewportHeight(true);
-
-			JButton refresh = new JButton("Refresh");
-
-			JPanel lowerPanel = new JPanel();
-			lowerPanel.setLayout(new BoxLayout(lowerPanel, BoxLayout.LINE_AXIS));
-			lowerPanel.add(refresh);
-
-			JPanel mainPanel = new JPanel();
-			mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.PAGE_AXIS));
-			mainPanel.add(scrollPane);
-			mainPanel.add(lowerPanel);
-
-			frame.getContentPane().add(mainPanel); //TODO: can only call this once, so must make it contain multiple panels
-
-			String[] tableNames = {FOREST, COVERAGE, INTERSECTION, REPORT, ROAD, SENSOR, STATE, WORKER};
-			JComboBox<String> comboBox = new JComboBox<>(tableNames);
-			//frame.getContentPane().add(comboBox);
+			tableModel = new CustomTableModel(model.fetchForest());
 		}
 		catch(SQLException e)
 		{
 			e.printStackTrace();
 		}
+		databaseViewer = new JTable();
+		databaseViewer.setModel(tableModel);
+		JScrollPane scrollPane = new JScrollPane(databaseViewer);
+		scrollPane.setPreferredSize(new Dimension(700, 200));
+		databaseViewer.setFillsViewportHeight(true);
 
+		JLabel tableSelectionLabel = new JLabel("Select a table to view:       ");
+		cb = new JComboBox<>(new String[] {FOREST, COVERAGE, INTERSECTION, REPORT, ROAD, SENSOR, STATE, WORKER});
+		cb.addActionListener(this);
+		JButton refresh = new JButton(new RefreshButtonAction(this));
+
+		JPanel lowerPanel = new JPanel();
+		lowerPanel.setLayout(new BoxLayout(lowerPanel, BoxLayout.LINE_AXIS));
+		lowerPanel.add(tableSelectionLabel);
+		lowerPanel.add(cb);
+		lowerPanel.add(refresh);
+
+		JPanel mainPanel = new JPanel();
+		mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.PAGE_AXIS));
+		mainPanel.add(scrollPane);
+		mainPanel.add(lowerPanel);
+
+		frame.getContentPane().add(mainPanel);
 
 		//Display the window.
 		frame.pack();
@@ -280,6 +273,50 @@ public class View
 		return toReturn;
 	}
 
+	public void actionPerformed(ActionEvent e) {
+		String selectedTable = (String) cb.getSelectedItem();
+
+		ResultSet newData = null;
+		try
+		{
+			switch (selectedTable)
+			{
+				case FOREST:
+					newData = model.fetchForest();
+					break;
+				case COVERAGE:
+					newData = model.fetchCoverage();
+					break;
+				case INTERSECTION:
+					newData = model.fetchIntersection();
+					break;
+				case REPORT:
+					newData = model.fetchReport();
+					break;
+				case ROAD:
+					newData = model.fetchRoad();
+					break;
+				case SENSOR:
+					newData = model.fetchSensor();
+					break;
+				case STATE:
+					newData = model.fetchState();
+					break;
+				case WORKER:
+					newData = model.fetchWorker();
+					break;
+				default:
+					break;
+			}
+
+			databaseViewer.setModel(new CustomTableModel(newData));
+		}
+		catch(SQLException exception)
+		{
+			exception.printStackTrace();
+		}
+	}
+
 	public static void main(String[] args)
 	{
 		javax.swing.SwingUtilities.invokeLater(
@@ -313,6 +350,24 @@ public class View
 			{
 				exception.printStackTrace();
 			}
+		}
+	}
+
+	private static class RefreshButtonAction extends AbstractAction
+	{
+		View v;
+
+		public RefreshButtonAction(View v)
+		{
+			super("Refresh");
+			this.v = v;
+		}
+
+		public void actionPerformed(ActionEvent a)
+		{
+			// Just call the same method that gets called when a new selection is made in the table-selector JComboBox.
+			// This will reload the currently selected table.
+			v.actionPerformed(null);
 		}
 	}
 
