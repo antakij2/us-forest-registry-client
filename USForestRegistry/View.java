@@ -3,8 +3,9 @@ package USForestRegistry;
 import java.awt.*;
 import javax.swing.*;
 import javax.swing.table.TableModel;
-import javax.xml.transform.Result;
 import java.awt.event.ActionEvent;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.text.NumberFormat;
@@ -16,14 +17,16 @@ import static USForestRegistry.StringConstants.*;
 //TODO: create the max amount of each formatter type that is shown in a dialog box at once, and use those as pools
 public class View 
 {
+	Model model = null;
+
 	/*
 	* Create the GUI and show it. 
 	*/
-	private static void createAndShowGUI()
+	private void createAndShowGUI()
 	{
 		//Create and set up the window.
 		JFrame frame = new JFrame("U.S. Forest Registry");
-		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE); //TODO: do custom function where it closes model, which needs to be an instance variable of a View object
+		frame.setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
 		//Before showing the main frame, show the initial database connection/login dialog, and connect to the database
 		/*LabelAndFormat[] connectLabelsAndFormats = new LabelAndFormat[]
@@ -43,7 +46,7 @@ public class View
 		loginCredentials.put(DATABASE_NAME, "pset1");
 		loginCredentials.put(USERNAME, "postgres");
 		loginCredentials.put(PASSWORD, "pass");
-		Model model = null;
+
 		try
 		{
 			model = new Model(loginCredentials);
@@ -59,6 +62,8 @@ public class View
 			frame.dispose();
 			return;
 		}
+
+		frame.addWindowListener(new ModelWindowAdapter(model));
 
 		//Create the menu bar and contained menu items.
 		JMenuBar menuBar = new JMenuBar();
@@ -195,12 +200,25 @@ public class View
 			JTable databaseViewer = new JTable();
 			databaseViewer.setModel(tableModel);
 			JScrollPane scrollPane = new JScrollPane(databaseViewer);
+			scrollPane.setPreferredSize(new Dimension(700, 200));
 			databaseViewer.setFillsViewportHeight(true);
-			frame.getContentPane().add(scrollPane); //TODO: can only call this once, so must make it contain multiple panels
+
+			JButton refresh = new JButton("Refresh");
+
+			JPanel lowerPanel = new JPanel();
+			lowerPanel.setLayout(new BoxLayout(lowerPanel, BoxLayout.LINE_AXIS));
+			lowerPanel.add(refresh);
+
+			JPanel mainPanel = new JPanel();
+			mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.PAGE_AXIS));
+			mainPanel.add(scrollPane);
+			mainPanel.add(lowerPanel);
+
+			frame.getContentPane().add(mainPanel); //TODO: can only call this once, so must make it contain multiple panels
 
 			String[] tableNames = {FOREST, COVERAGE, INTERSECTION, REPORT, ROAD, SENSOR, STATE, WORKER};
 			JComboBox<String> comboBox = new JComboBox<>(tableNames);
-			frame.getContentPane().add(comboBox);
+			//frame.getContentPane().add(comboBox);
 		}
 		catch(SQLException e)
 		{
@@ -269,10 +287,33 @@ public class View
 				{
 					public void run() 
 					{
-						createAndShowGUI();
+						View view = new View();
+						view.createAndShowGUI();
 					}
 				}
 				);
+	}
+
+	private static class ModelWindowAdapter extends WindowAdapter
+	{
+		Model model;
+
+		public ModelWindowAdapter(Model m)
+		{
+			model = m;
+		}
+
+		public void windowClosing(WindowEvent e)
+		{
+			try
+			{
+				model.closeConnection();
+			}
+			catch(SQLException exception)
+			{
+				exception.printStackTrace();
+			}
+		}
 	}
 
 	private static class MenuItemAction<R> extends AbstractAction
@@ -322,7 +363,7 @@ public class View
 					}
 
 					messageType = JOptionPane.PLAIN_MESSAGE;
-					title = "Results";
+					title = "Data";
 				}
 				else
 				{
