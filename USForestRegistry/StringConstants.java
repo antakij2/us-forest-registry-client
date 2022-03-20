@@ -26,9 +26,7 @@ public class StringConstants
 	public static final String ENERGY = "energy";
 	public static final String WORKER_A_NAME = "Worker A's name";
 	public static final String WORKER_B_NAME = "Worker B's name";
-	public static final String REPORT_TIME = "report_time";
 	public static final String TEMPERATURE = "temperature";
-	public static final String PERCENTAGE = "percentage";
 	public static final String HOSTNAME = "hostname";
 	public static final String PORT = "port";
 	public static final String DATABASE_NAME = "database name";

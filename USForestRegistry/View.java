@@ -12,7 +12,6 @@ import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.LinkedHashMap;
-import java.util.HashMap;
 
 import static USForestRegistry.StringConstants.*;
 //TODO: create the max amount of each formatter type that is shown in a dialog box at once, and use those as pools
