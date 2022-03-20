@@ -166,7 +166,7 @@ public class View
 				true);
 		JMenuItem findTopKBusyWorkers = new JMenuItem(findTopKBusyWorkersAction);
 
-		MenuItemAction<ResultSet> displaySensorsRankingAction = new MenuItemAction<>(DISPLAY_SENSORS_RANKING + DOTS,
+		MenuItemAction<ResultSet> displaySensorsRankingAction = new MenuItemAction<>(DISPLAY_SENSORS_RANKING,
 				model::displaySensorsRanking, frame, "", null, "", false);
 		JMenuItem displaySensorsRanking = new JMenuItem(displaySensorsRankingAction);
 
@@ -243,6 +243,12 @@ public class View
 				catch(Exception e)
 				{
 					JOptionPane.showMessageDialog(dialog, e.getMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+					if(dialog.isDummyDialog())
+					{
+						// if we were trying to do this operation without showing a dialog box and an error occurred,
+						// just stop trying to do the operation, so we don't get caught in an infinite loop of errors
+						break;
+					}
 					dialog.revive();
 				}
 			}

@@ -16,6 +16,7 @@ class LabeledTextFieldDialog extends JDialog implements ActionListener, Property
 	private String[] options = null;
 	private String affirmativeOptionText = null;
 	private LinkedHashMap<String, String> labelToTypedText = null;
+	private boolean isDummyDialog;
 
 	//TODO: proper password field
 	public LabeledTextFieldDialog(Frame owner, String title, LabelAndFormat[] labelsAndFormats,
@@ -27,6 +28,7 @@ class LabeledTextFieldDialog extends JDialog implements ActionListener, Property
 		{
 			optionPane = new JOptionPane();
 			optionPane.setValue(affirmativeOptionText);
+			isDummyDialog = true;
 			return;
 		}
 		this.affirmativeOptionText = affirmativeOptionText;
@@ -95,6 +97,11 @@ class LabeledTextFieldDialog extends JDialog implements ActionListener, Property
 		pack();
 		setLocationRelativeTo(owner);
 		setVisible(true);
+	}
+
+	public boolean isDummyDialog()
+	{
+		return isDummyDialog;
 	}
 
 	public Object getOptionPaneValue()

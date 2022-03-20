@@ -92,7 +92,7 @@ public class Model
 		updateForestCoveredAreaStmt_FOREST = con.prepareStatement(String.format(
 				"UPDATE forest SET %s=? WHERE %s=?", AREA, FOREST_NO));
 		updateForestCoveredArea_COVERAGE = con.prepareStatement(String.format(
-				"UPDATE coverage SET %s=?, percentage=1, %s=? WHERE %s=?", STATE, AREA, FOREST_NO));
+				"UPDATE coverage SET %s=?, %s=? WHERE %s=?", STATE, AREA, FOREST_NO));
 
 		findTopKBusyWorkersStmt = con.prepareStatement(String.format(
 				"SELECT %s, %s, COUNT(*) sensors_to_charge FROM worker JOIN sensor ON %s=%s AND" +
@@ -309,9 +309,9 @@ public class Model
 		updateForestCoveredArea_COVERAGE.setDouble(2, Double.parseDouble(attrToVal.get(AREA)));
 		updateForestCoveredArea_COVERAGE.setString(3, forestNo);
 
-		maybeAddNewState.setString(1, STATE_ABBREVIATION);
+		maybeAddNewState.setString(1, attrToVal.get(STATE_ABBREVIATION));
 
-		executeStatements(updateForestCoveredAreaStmt_FOREST, updateForestCoveredArea_COVERAGE, maybeAddNewState);
+		executeStatements(maybeAddNewState, updateForestCoveredAreaStmt_FOREST, updateForestCoveredArea_COVERAGE);
 		return "Forest \"" + attrToVal.get(FOREST_NAME) + "\" successfully updated.";
 	}
 
