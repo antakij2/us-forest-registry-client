@@ -97,12 +97,14 @@ public class Model
 		findTopKBusyWorkersStmt = con.prepareStatement(String.format(
 				"SELECT %s, %s, COUNT(*) sensors_to_charge FROM worker JOIN sensor ON %s=%s AND" +
 						" %s <= 2 GROUP BY %s, %s ORDER BY sensors_to_charge DESC LIMIT ?",
-				SSN, NAME, SSN, MAINTAINER, ENERGY, SSN, NAME));
+				SSN, NAME, SSN, MAINTAINER, ENERGY, SSN, NAME),
+				ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
 
 		displaySensorsRankingStmt = con.prepareStatement(String.format(
 				"SELECT sensor.%s, %s, %s, COUNT(*) reports_generated FROM sensor JOIN report ON " +
 						"sensor.%s=report.%s GROUP BY sensor.%s, %s, %s ORDER BY reports_generated DESC",
-				SENSOR_ID, X, Y, SENSOR_ID, SENSOR_ID, SENSOR_ID, X, Y));
+				SENSOR_ID, X, Y, SENSOR_ID, SENSOR_ID, SENSOR_ID, X, Y),
+				ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
 
 		fetchForestStmt = con.prepareStatement("SELECT * FROM forest", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
 		fetchCoverageStmt = con.prepareStatement("SELECT * FROM coverage", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);

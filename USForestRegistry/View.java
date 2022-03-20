@@ -2,6 +2,7 @@ package USForestRegistry;
 
 import java.awt.*;
 import javax.swing.*;
+import javax.swing.table.TableModel;
 import javax.xml.transform.Result;
 import java.awt.event.ActionEvent;
 import java.sql.ResultSet;
@@ -292,22 +293,38 @@ public class View
 
 		public void actionPerformed(ActionEvent a)
 		{
-			R confirmation = callMethodViaCustomDialog(methodToCall, dialogOwner, dialogTitle, dialogLabelsAndFormats,
+			String title;
+			Object toDisplay;
+			int messageType;
+			R result = callMethodViaCustomDialog(methodToCall, dialogOwner, dialogTitle, dialogLabelsAndFormats,
 					dialogAffirmativeOptionText, dialogHasCancelButton);
 
-			if(confirmation != null)
+			if(result != null)
 			{
-				/*if(confirmation instanceof rowset)
+				if(result instanceof ResultSet)
 				{
-					//set toDisplay = table view
-					// change "Confirmation" text to be "Results" here
+					try
+					{
+						TableModel model = new CustomTableModel((ResultSet) result);
+						JTable table = new JTable(model);
+						toDisplay = new JScrollPane(table);
+					}
+					catch(SQLException e)
+					{
+						e.printStackTrace();
+						return;
+					}
+
+					messageType = JOptionPane.PLAIN_MESSAGE;
+					title = "Results";
 				}
 				else
 				{
-					//set toDisplay = confirmation
-					// and change "confirmation" argument to toDisplay
-				}*/
-				JOptionPane.showMessageDialog(dialogOwner, confirmation, "Confirmation", JOptionPane.INFORMATION_MESSAGE);
+					toDisplay = result;
+					messageType = JOptionPane.INFORMATION_MESSAGE;
+					title = "Confirmation";
+				}
+				JOptionPane.showMessageDialog(dialogOwner, toDisplay, title, messageType);
 			}
 		}
 	}
