@@ -166,7 +166,7 @@ public class View
 		JMenuItem findTopKBusyWorkers = new JMenuItem(findTopKBusyWorkersAction);
 
 		MenuItemAction<ResultSet> displaySensorsRankingAction = new MenuItemAction<>(DISPLAY_SENSORS_RANKING + DOTS,
-				model::displaySensorsRanking, frame, DISPLAY_SENSORS_RANKING, null, QUERY, true);
+				model::displaySensorsRanking, frame, "", null, "", false);
 		JMenuItem displaySensorsRanking = new JMenuItem(displaySensorsRankingAction);
 
 		select.add(findTopKBusyWorkers);
@@ -212,7 +212,7 @@ public class View
 		frame.setLocationRelativeTo(null);
 		frame.setVisible(true);
 	}
-	//TODO: alter so you can have menu item which has no dialog, just executes method
+
 	private static <R> R callMethodViaCustomDialog(FunctionThrowsException<R> methodReference, Frame owner,
 												   String title, LabelAndFormat[] labelsAndFormats,
 												   String affirmativeOptionText, boolean hasCancelButton)

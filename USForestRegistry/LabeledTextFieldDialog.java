@@ -11,17 +11,24 @@ class LabeledTextFieldDialog extends JDialog implements ActionListener, Property
 {
 	private static final String CANCEL = "Cancel";
 
-	private final JTextField[] textFields;
-	private final JOptionPane optionPane;
-	private final String[] options;
-	private final String affirmativeOptionText;
-	private final LinkedHashMap<String, String> labelToTypedText;
+	private JTextField[] textFields = null;
+	private JOptionPane optionPane;
+	private String[] options = null;
+	private String affirmativeOptionText = null;
+	private LinkedHashMap<String, String> labelToTypedText = null;
 
 	//TODO: proper password field
 	public LabeledTextFieldDialog(Frame owner, String title, LabelAndFormat[] labelsAndFormats,
 								  String affirmativeOptionText, boolean hasCancelButton)
 	{
 		super(owner, title, true);
+
+		if(labelsAndFormats == null)
+		{
+			optionPane = new JOptionPane();
+			optionPane.setValue(affirmativeOptionText);
+			return;
+		}
 		this.affirmativeOptionText = affirmativeOptionText;
 
 		//Create text fields with specified formatting, and group them with their corresponding labels
