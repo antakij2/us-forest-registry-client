@@ -12,9 +12,16 @@ import java.sql.SQLException;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
 import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.Map;
 
 import static USForestRegistry.StringConstants.*;
-//TODO: create the max amount of each formatter type that is shown in a dialog box at once, and use those as pools
+//TODO: in model, create pools of each formatter type that is shown in a dialog box
+//TODO: wherever there's a printStackTrace, replace with a popup error dialog showing message
+//TODO: add comments for all classes/functions
+//FIXME: how to add sensor with null maintainer? jtextfield interprets it as empty string rn.
+// Also means forgetting to add value for what should violate a null constraint will be allowed since its
+// the empty string. hardcode it to interpret empty string as null?
 public class View implements ActionListener
 {
 	Model model;
@@ -79,7 +86,7 @@ public class View implements ActionListener
 				{
 						new LabelAndFormat(FOREST_NO, null),
 						new LabelAndFormat(NAME, null),
-						new LabelAndFormat(AREA, NumberFormat.getNumberInstance()),
+						new LabelAndFormat(AREA, model.NUMBER_INSTANCES[0]),
 						new LabelAndFormat(ACID_LEVEL, NumberFormat.getNumberInstance()),
 						new LabelAndFormat(MBR_XMIN, NumberFormat.getNumberInstance()),
 						new LabelAndFormat(MBR_XMAX, NumberFormat.getNumberInstance()),
@@ -110,7 +117,7 @@ public class View implements ActionListener
 						new LabelAndFormat(LAST_CHARGED, new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")),
 						new LabelAndFormat(MAINTAINER, null),
 						new LabelAndFormat(LAST_READ, new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")),
-						new LabelAndFormat(ENERGY, NumberFormat.getNumberInstance())
+						new LabelAndFormat(ENERGY, model.NUMBER_INSTANCES[0])
 				};
 		MenuItemAction<String> addSensorAction = new MenuItemAction<>(ADD_SENSOR+DOTS, model::addSensor, frame,
 				ADD_SENSOR, addSensorLabelsAndFormats, INSERT, true);
@@ -180,9 +187,20 @@ public class View implements ActionListener
 		select.add(findTopKBusyWorkers);
 		select.add(displaySensorsRanking);
 
+
+		/*JMenu testing = new JMenu("Testing");
+
+		MenuItemAction<String> testUpdateForestCoveredAreaAction = new MenuItemAction<>("Test Concurrency: Update Forest Covered Area",
+				model::testConcurrencyError, frame, "Test Concurrency: Update Forest Covered Area",
+				null, "", false);
+		JMenuItem testUpdateForestCoveredArea = new JMenuItem(testUpdateForestCoveredAreaAction);
+
+		testing.add(testUpdateForestCoveredArea);*/
+
 		menuBar.add(insert);
 		menuBar.add(update);
 		menuBar.add(select);
+		//menuBar.add(testing);
 		frame.setJMenuBar(menuBar);
 
 		CustomTableModel tableModel = null;
@@ -224,7 +242,7 @@ public class View implements ActionListener
 		frame.setVisible(true);
 	}
 
-	private static <R> R callMethodViaCustomDialog(FunctionThrowsException<R> methodReference, Frame owner,
+	private <R> R callMethodViaCustomDialog(FunctionThrowsException<R> methodReference, Frame owner,
 												   String title, LabelAndFormat[] labelsAndFormats,
 												   String affirmativeOptionText, boolean hasCancelButton)
 	{
@@ -240,15 +258,45 @@ public class View implements ActionListener
 
 		// Attempt to call the associated method with the user-supplied info from the dialog box.
 		// Show an error message and let the user re-enter info if the intended method call throws an exception,
-		// otherwise, show a method-specific confirmation message if the method call was successful.
-		while(true)
+		// otherwise, show a method-specific success message after the method call.
+		while(toReturn == null)
 		{
 			if(dialog.getOptionPaneValue() == affirmativeOptionText) //user hit the affirmative button
 			{
 				try
 				{
 					toReturn = methodReference.apply(dialog.getLabelToTypedText());
-					break;
+
+					// Ask the user to confirm entered data, if there was any. If this is an update operation, and if,
+					// while this confirmation dialog is shown, user 2 on a different terminal successfully updates the
+					// same row as user 1 is about to update, user 1's attempt will fail.
+					if(!dialog.isDummyDialog())
+					{
+						// Build up the string representation of the entered data to show back to the user
+						StringBuilder sb = new StringBuilder();
+						for (Map.Entry<String, String> entry : dialog.getLabelToTypedText().entrySet())
+						{
+							sb.append(entry.getKey());
+							sb.append(" = ");
+							sb.append(entry.getValue());
+							sb.append("\n");
+						}
+
+						int choice = JOptionPane.showConfirmDialog(dialog, sb.toString(), "Confirm",
+								JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE); //TODO: "OK" should be custom operation-based label
+
+						if(choice == JOptionPane.CANCEL_OPTION || choice == JOptionPane.CLOSED_OPTION)
+						{
+							// Let the user go back and change data
+							model.rollback();
+							toReturn = null;
+							dialog.revive();
+							continue;
+						}
+					}
+
+					// If we reached this point, the backend method executed, but did not commit its changes
+					model.commit();
 				}
 				catch(Exception e)
 				{
@@ -256,7 +304,7 @@ public class View implements ActionListener
 					if(dialog.isDummyDialog())
 					{
 						// if we were trying to do this operation without showing a dialog box and an error occurred,
-						// just stop trying to do the operation, so we don't get caught in an infinite loop of errors
+						// just stop trying to do the operation.
 						break;
 					}
 					dialog.revive();
@@ -370,7 +418,7 @@ public class View implements ActionListener
 		}
 	}
 
-	private static class MenuItemAction<R> extends AbstractAction
+	private class MenuItemAction<R> extends AbstractAction
 	{
 		private final FunctionThrowsException<R> methodToCall;
 		private final Frame dialogOwner;

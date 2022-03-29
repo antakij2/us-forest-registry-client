@@ -15,30 +15,14 @@ public class Model
 	public final SimpleDateFormat[] DATE_INSTANCES;
 
 	private final Connection con;
-	private final PreparedStatement addForestStmt_FOREST;
-	private final PreparedStatement maybeAddNewState;
-	private final PreparedStatement addForestStmt_COVERAGE;
-	private final PreparedStatement addWorkerStmt;
-	private final PreparedStatement addSensorStmt;
-	private final PreparedStatement switchWorkersDutiesCheckStateStmt;
-	private final PreparedStatement switchWorkersDutiesQuerySensorIDStmt;
-	private final PreparedStatement switchWorkersDutiesSetMaintainerOnSSNStmt;
-	private final PreparedStatement updateSensorStatusQueryStmt;
-	private final PreparedStatement updateSensorStatusStmt_SENSOR;
-	private final PreparedStatement updateSensorStatusStmt_REPORT;
-	private final PreparedStatement updateForestCoveredAreaQueryStmt;
-	private final PreparedStatement updateForestCoveredAreaStmt_FOREST;
-	private final PreparedStatement updateForestCoveredArea_COVERAGE;
-	private final PreparedStatement findTopKBusyWorkersStmt;
-	private final PreparedStatement displaySensorsRankingStmt;
-	private final PreparedStatement fetchForestStmt;
-	private final PreparedStatement fetchCoverageStmt;
-	private final PreparedStatement fetchIntersectionStmt;
-	private final PreparedStatement fetchReportStmt;
-	private final PreparedStatement fetchRoadStmt;
-	private final PreparedStatement fetchSensorStmt;
-	private final PreparedStatement fetchStateStmt;
-	private final PreparedStatement fetchWorkerStmt;
+
+	private final PreparedStatement addForestStmt_FOREST, maybeAddNewState, addForestStmt_COVERAGE, addWorkerStmt,
+			addSensorStmt, switchWorkersDutiesCheckStateStmt, switchWorkersDutiesQuerySensorIDStmt,
+			switchWorkersDutiesSetMaintainerOnSSNStmt, updateSensorStatusQueryStmt, updateSensorStatusStmt_SENSOR,
+			updateSensorStatusStmt_REPORT, updateForestCoveredAreaQueryStmt, updateForestCoveredAreaStmt_FOREST,
+			updateForestCoveredArea_COVERAGE, findTopKBusyWorkersStmt, displaySensorsRankingStmt, fetchForestStmt,
+			fetchCoverageStmt, fetchIntersectionStmt, fetchReportStmt, fetchRoadStmt, fetchSensorStmt, fetchStateStmt,
+			fetchWorkerStmt, startTransactionStmt;
 
 	public Model(HashMap<String, String> attrToVal) throws SQLException
 	{
@@ -65,6 +49,8 @@ public class Model
 				attrToVal.get(HOSTNAME), attrToVal.get(PORT), attrToVal.get(DATABASE_NAME));
 
 		con = DriverManager.getConnection(url, attrToVal.get(USERNAME), attrToVal.get(PASSWORD));
+		con.setAutoCommit(false);
+
 		//TODO: alter constraints on schema to implement restrictions from instructions
 		addForestStmt_FOREST = con.prepareStatement("INSERT INTO forest VALUES(?, ?, ?, ?, ?, ?, ?, ?)");
 		maybeAddNewState = con.prepareStatement(String.format(
@@ -115,163 +101,221 @@ public class Model
 		fetchSensorStmt = con.prepareStatement("SELECT * FROM sensor", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
 		fetchStateStmt = con.prepareStatement("SELECT * FROM state", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
 		fetchWorkerStmt = con.prepareStatement("SELECT * FROM worker", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
+
+		startTransactionStmt = con.prepareStatement("START TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 	}
 
 	public String addForest(HashMap<String, String> attrToVal) throws SQLException
 	{
-		addForestStmt_FOREST.setString(1, attrToVal.get(FOREST_NO));
-		addForestStmt_FOREST.setString(2, attrToVal.get(NAME));
-		addForestStmt_FOREST.setDouble(3, Double.parseDouble(attrToVal.get(AREA)));
-		addForestStmt_FOREST.setDouble(4, Double.parseDouble(attrToVal.get(ACID_LEVEL)));
-		addForestStmt_FOREST.setDouble(5, Double.parseDouble(attrToVal.get(MBR_XMIN)));
-		addForestStmt_FOREST.setDouble(6, Double.parseDouble(attrToVal.get(MBR_XMAX)));
-		addForestStmt_FOREST.setDouble(7, Double.parseDouble(attrToVal.get(MBR_YMIN)));
-		addForestStmt_FOREST.setDouble(8, Double.parseDouble(attrToVal.get(MBR_YMAX)));
+		try
+		{
+			startTransactionStmt.execute();
 
-		maybeAddNewState.setString(1, attrToVal.get(STATE_ABBREVIATION));
+			addForestStmt_FOREST.setString(1, attrToVal.get(FOREST_NO));
+			addForestStmt_FOREST.setString(2, attrToVal.get(NAME));
+			addForestStmt_FOREST.setDouble(3, Double.parseDouble(attrToVal.get(AREA)));
+			addForestStmt_FOREST.setDouble(4, Double.parseDouble(attrToVal.get(ACID_LEVEL)));
+			addForestStmt_FOREST.setDouble(5, Double.parseDouble(attrToVal.get(MBR_XMIN)));
+			addForestStmt_FOREST.setDouble(6, Double.parseDouble(attrToVal.get(MBR_XMAX)));
+			addForestStmt_FOREST.setDouble(7, Double.parseDouble(attrToVal.get(MBR_YMIN)));
+			addForestStmt_FOREST.setDouble(8, Double.parseDouble(attrToVal.get(MBR_YMAX)));
 
-		addForestStmt_COVERAGE.setString(1, attrToVal.get(FOREST_NO));
-		addForestStmt_COVERAGE.setString(2, attrToVal.get(STATE_ABBREVIATION));
-		addForestStmt_COVERAGE.setDouble(3, Double.parseDouble(attrToVal.get(AREA)));
+			maybeAddNewState.setString(1, attrToVal.get(STATE_ABBREVIATION));
 
-		executeStatements(addForestStmt_FOREST, maybeAddNewState, addForestStmt_COVERAGE);
+			addForestStmt_COVERAGE.setString(1, attrToVal.get(FOREST_NO));
+			addForestStmt_COVERAGE.setString(2, attrToVal.get(STATE_ABBREVIATION));
+			addForestStmt_COVERAGE.setDouble(3, Double.parseDouble(attrToVal.get(AREA)));
+
+			addForestStmt_FOREST.execute();
+			maybeAddNewState.execute();
+			addForestStmt_COVERAGE.execute();
+		}
+		catch(SQLException e)
+		{
+			con.rollback();
+			throw e;
+		}
+
 		return "Forest \"" + attrToVal.get(NAME) + "\" added successfully.";
 	}
 
 	public String addWorker(HashMap<String, String> attrToVal) throws SQLException
 	{
-		addWorkerStmt.setString(1, attrToVal.get(SSN));
-		addWorkerStmt.setString(2, attrToVal.get(NAME));
-		addWorkerStmt.setInt(3, Integer.parseInt(attrToVal.get(RANK)));
-		addWorkerStmt.setString(4, attrToVal.get(EMPLOYING_STATE));
+		try
+		{
+			startTransactionStmt.execute();
 
-		executeStatements(addWorkerStmt);
+			addWorkerStmt.setString(1, attrToVal.get(SSN));
+			addWorkerStmt.setString(2, attrToVal.get(NAME));
+			addWorkerStmt.setInt(3, Integer.parseInt(attrToVal.get(RANK)));
+			addWorkerStmt.setString(4, attrToVal.get(EMPLOYING_STATE));
+			addWorkerStmt.execute();
+		}
+		catch(SQLException e)
+		{
+			con.rollback();
+			throw e;
+		}
+
 		return "Worker \"" + attrToVal.get(NAME) + "\" added successfully.";
 	}
 
-	public String addSensor(HashMap<String, String> attrToVal) throws SQLException, ParseException
+	public String addSensor(HashMap<String, String> attrToVal) throws Exception
 	{
-		addSensorStmt.setInt(1, Integer.parseInt(attrToVal.get(SENSOR_ID)));
-		addSensorStmt.setInt(2, Integer.parseInt(attrToVal.get(X)));
-		addSensorStmt.setInt(3, Integer.parseInt(attrToVal.get(Y)));
+		try
+		{
+			startTransactionStmt.execute();
 
-		java.util.Date date = DATE_INSTANCES[0].parse(attrToVal.get(LAST_CHARGED));
-		Timestamp timestamp = new Timestamp(date.getTime());
-		addSensorStmt.setTimestamp(4, timestamp);
+			addSensorStmt.setInt(1, Integer.parseInt(attrToVal.get(SENSOR_ID)));
+			addSensorStmt.setInt(2, Integer.parseInt(attrToVal.get(X)));
+			addSensorStmt.setInt(3, Integer.parseInt(attrToVal.get(Y)));
 
-		addSensorStmt.setString(5, attrToVal.get(MAINTAINER));
+			java.util.Date date = DATE_INSTANCES[0].parse(attrToVal.get(LAST_CHARGED));
+			Timestamp timestamp = new Timestamp(date.getTime());
+			addSensorStmt.setTimestamp(4, timestamp);
 
-		date = DATE_INSTANCES[0].parse(attrToVal.get(LAST_READ));
-		timestamp = new Timestamp(date.getTime());
-		addSensorStmt.setTimestamp(6, timestamp);
+			addSensorStmt.setString(5, attrToVal.get(MAINTAINER));
 
-		addSensorStmt.setDouble(7, Double.parseDouble(attrToVal.get(ENERGY)));
+			date = DATE_INSTANCES[0].parse(attrToVal.get(LAST_READ));
+			timestamp = new Timestamp(date.getTime());
+			addSensorStmt.setTimestamp(6, timestamp);
 
+			addSensorStmt.setDouble(7, Double.parseDouble(attrToVal.get(ENERGY)));
 
-		executeStatements(addSensorStmt);
+			addSensorStmt.execute();
+		}
+		catch(Exception e)
+		{
+			con.rollback();
+			throw e;
+		}
+
 		return "Sensor \"" + attrToVal.get(SENSOR_ID) + "\" at coordinates X = " + attrToVal.get(X) +
 				", Y = " + attrToVal.get(Y) + " added successfully.";
 	}
 
 	public String switchWorkersDuties(HashMap<String, String> attrToVal) throws Exception
 	{
-		// Check if both workers' names exist in the database
-		switchWorkersDutiesCheckStateStmt.setString(1, attrToVal.get(WORKER_A_NAME));
-		switchWorkersDutiesCheckStateStmt.setString(2, attrToVal.get(WORKER_B_NAME));
-		executeStatements(switchWorkersDutiesCheckStateStmt);
-
-		ResultSet rs = switchWorkersDutiesCheckStateStmt.getResultSet();
-		String[] ssns = new String[2];
-		String[] states = new String[2];
-
-		int i = 0;
-		while(rs.next())
+		try
 		{
-			ssns[i] = rs.getString(1);
-			states[i] = rs.getString(2);
+			startTransactionStmt.execute();
 
-			++i;
-		}
-		if(ssns[1] == null)
-		{
-			// if the result set had any less than 2 rows, then one or both of the worker names did not exist
-			throw new Exception("One or more of the supplied workers do not exist.");
-		}
+			// Check if both workers' names exist in the database
+			switchWorkersDutiesCheckStateStmt.setString(1, attrToVal.get(WORKER_A_NAME));
+			switchWorkersDutiesCheckStateStmt.setString(2, attrToVal.get(WORKER_B_NAME));
+			switchWorkersDutiesCheckStateStmt.execute();
 
-		// Check if both workers have the same employing state
-		if(!states[0].equals(states[1]))
-		{
-			// if the employing states aren't the same, the workers can't switch duties
-			throw new Exception("The employing states of the supplied workers are different.\n" +
-					"The workers cannot switch duties.");
-		}
+			ResultSet rs = switchWorkersDutiesCheckStateStmt.getResultSet();
+			String[] ssns = new String[2];
+			String[] states = new String[2];
 
-
-		// Store the sensor_id's of the sensors currently assigned to the first ssn
-		switchWorkersDutiesQuerySensorIDStmt.setString(1, ssns[0]);
-		executeStatements(switchWorkersDutiesQuerySensorIDStmt);
-		rs = switchWorkersDutiesQuerySensorIDStmt.getResultSet();
-
-		// For all sensors with the second ssn as the maintainer, change them to have the first ssn
-		switchWorkersDutiesSetMaintainerOnSSNStmt.setString(1, ssns[0]);
-		switchWorkersDutiesSetMaintainerOnSSNStmt.setString(2, ssns[1]);
-
-		// For all sensors that originally had the first ssn as the maintainer, if there were any,
-		// change them to have the second ssn
-		if(rs.next())
-		{
-			StringBuilder ids = new StringBuilder("(");
-			ids.append(rs.getInt(1));
+			int i = 0;
 			while (rs.next())
 			{
-				ids.append(",");
-				ids.append(rs.getInt(1));
+				ssns[i] = rs.getString(1);
+				states[i] = rs.getString(2);
+
+				++i;
 			}
-			ids.append(")");
-			PreparedStatement setMaintainerOnIDStmt = con.prepareStatement(String.format(
-					"UPDATE sensor SET %s=%s WHERE %s in %s", MAINTAINER, ssns[1], SENSOR_ID, ids.toString()));
-			executeStatements(switchWorkersDutiesSetMaintainerOnSSNStmt, setMaintainerOnIDStmt);
+			if (ssns[1] == null)
+			{
+				// if the result set had any less than 2 rows, then one or both of the worker names did not exist
+				throw new Exception("One or more of the supplied workers do not exist.");
+			}
+
+			// Check if both workers have the same employing state
+			if (!states[0].equals(states[1]))
+			{
+				// if the employing states aren't the same, the workers can't switch duties
+				throw new Exception("The employing states of the supplied workers are different.\n" +
+						"The workers cannot switch duties.");
+			}
+
+
+			// Store the sensor_id's of the sensors currently assigned to the first ssn
+			switchWorkersDutiesQuerySensorIDStmt.setString(1, ssns[0]);
+			switchWorkersDutiesQuerySensorIDStmt.execute();
+			rs = switchWorkersDutiesQuerySensorIDStmt.getResultSet();
+
+			// For all sensors with the second ssn as the maintainer, change them to have the first ssn
+			switchWorkersDutiesSetMaintainerOnSSNStmt.setString(1, ssns[0]);
+			switchWorkersDutiesSetMaintainerOnSSNStmt.setString(2, ssns[1]);
+
+			// For all sensors that originally had the first ssn as the maintainer, if there were any,
+			// change them to have the second ssn
+			if (rs.next())
+			{
+				StringBuilder ids = new StringBuilder("(");
+				ids.append(rs.getInt(1));
+				while (rs.next())
+				{
+					ids.append(",");
+					ids.append(rs.getInt(1));
+				}
+				ids.append(")");
+				PreparedStatement setMaintainerOnIDStmt = con.prepareStatement(String.format(
+						"UPDATE sensor SET %s=%s WHERE %s in %s", MAINTAINER, ssns[1], SENSOR_ID, ids));
+				switchWorkersDutiesSetMaintainerOnSSNStmt.execute();
+				setMaintainerOnIDStmt.execute();
+			}
+			else
+			{
+				switchWorkersDutiesSetMaintainerOnSSNStmt.execute();
+			}
 		}
-		else
+		catch(Exception e)
 		{
-			executeStatements(switchWorkersDutiesSetMaintainerOnSSNStmt);
+			con.rollback();
+			throw e;
 		}
 
-		return "Workers " + attrToVal.get(WORKER_A_NAME) + " and " + attrToVal.get(WORKER_B_NAME) +
-				" have successfully switched duties.";
+		return "Workers \"" + attrToVal.get(WORKER_A_NAME) + "\" and \"" + attrToVal.get(WORKER_B_NAME) +
+				"\" have successfully switched duties.";
 	}
 
 	public String updateSensorStatus(HashMap<String, String> attrToVal) throws Exception
 	{
-		// Look up the sensor_id associated with the user-supplied X and Y coordinates
-		updateSensorStatusQueryStmt.setDouble(1, Double.parseDouble(attrToVal.get(X)));
-		updateSensorStatusQueryStmt.setDouble(2, Double.parseDouble(attrToVal.get(Y)));
-		executeStatements(updateSensorStatusQueryStmt);
-		ResultSet rs = updateSensorStatusQueryStmt.getResultSet();
-		int sensorId;
-		if(rs.next())
+		double temp;
+		try
 		{
-			sensorId = rs.getInt(1);
+			startTransactionStmt.execute();
+
+			// Look up the sensor_id associated with the user-supplied X and Y coordinates
+			updateSensorStatusQueryStmt.setDouble(1, Double.parseDouble(attrToVal.get(X)));
+			updateSensorStatusQueryStmt.setDouble(2, Double.parseDouble(attrToVal.get(Y)));
+			updateSensorStatusQueryStmt.execute();
+			ResultSet rs = updateSensorStatusQueryStmt.getResultSet();
+			int sensorId;
+			if (rs.next())
+			{
+				sensorId = rs.getInt(1);
+			}
+			else
+			{
+				throw new Exception("No sensor with the supplied coordinates exists.");
+			}
+
+			// Update the sensor with the user-supplied time of last charge and energy level,
+			// at the current time
+			java.util.Date date = DATE_INSTANCES[0].parse(attrToVal.get(LAST_CHARGED));
+			Timestamp timestamp = new Timestamp(date.getTime());
+			updateSensorStatusStmt_SENSOR.setTimestamp(1, timestamp);
+			updateSensorStatusStmt_SENSOR.setDouble(2, Double.parseDouble(attrToVal.get(ENERGY)));
+			updateSensorStatusStmt_SENSOR.setDouble(3, sensorId);
+
+			// Insert a new report with the user-supplied temperature, at the current time
+			temp = Double.parseDouble(attrToVal.get(TEMPERATURE));
+			updateSensorStatusStmt_REPORT.setInt(1, sensorId);
+			updateSensorStatusStmt_REPORT.setDouble(2, temp);
+
+			updateSensorStatusStmt_SENSOR.execute();
+			updateSensorStatusStmt_REPORT.execute();
 		}
-		else
+		catch(Exception e)
 		{
-			throw new Exception("No sensor with the supplied coordinates exists.");
+			con.rollback();
+			throw e;
 		}
-
-		// Update the sensor with the user-supplied time of last charge and energy level,
-		// at the current time
-		java.util.Date date = DATE_INSTANCES[0].parse(attrToVal.get(LAST_CHARGED));
-		Timestamp timestamp = new Timestamp(date.getTime());
-		updateSensorStatusStmt_SENSOR.setTimestamp(1, timestamp);
-		updateSensorStatusStmt_SENSOR.setDouble(2, Double.parseDouble(attrToVal.get(ENERGY)));
-		updateSensorStatusStmt_SENSOR.setDouble(3, sensorId);
-
-		// Insert a new report with the user-supplied temperature, at the current time
-		double temp = Double.parseDouble(attrToVal.get(TEMPERATURE));
-		updateSensorStatusStmt_REPORT.setInt(1, sensorId);
-		updateSensorStatusStmt_REPORT.setDouble(2, temp);
-
-		executeStatements(updateSensorStatusStmt_SENSOR, updateSensorStatusStmt_REPORT);
 
 		String returnMessage = "Sensor updated successfully.\n";
 		if(temp > 100.0)
@@ -288,112 +332,155 @@ public class Model
 
 	public String updateForestCoveredArea(HashMap<String, String> attrToVal) throws Exception
 	{
-		// Look up the forest_no associated with the user-supplied forest name
-		updateForestCoveredAreaQueryStmt.setString(1, attrToVal.get(FOREST_NAME));
-		executeStatements(updateForestCoveredAreaQueryStmt);
-		ResultSet rs = updateForestCoveredAreaQueryStmt.getResultSet();
-		String forestNo;
-		if(rs.next())
+		try
 		{
-			forestNo = rs.getString(1);
+			startTransactionStmt.execute();
+
+			// Look up the forest_no associated with the user-supplied forest name
+			updateForestCoveredAreaQueryStmt.setString(1, attrToVal.get(FOREST_NAME));
+			updateForestCoveredAreaQueryStmt.execute();
+
+			ResultSet rs = updateForestCoveredAreaQueryStmt.getResultSet();
+			String forestNo;
+			if (rs.next())
+			{
+				forestNo = rs.getString(1);
+			}
+			else
+			{
+				throw new Exception("No forest with the supplied name exists.");
+			}
+
+			// Update the forest, coverage, and state tables with the user-supplied input
+			updateForestCoveredAreaStmt_FOREST.setDouble(1, Double.parseDouble(attrToVal.get(AREA)));
+			updateForestCoveredAreaStmt_FOREST.setString(2, forestNo);
+
+			updateForestCoveredArea_COVERAGE.setString(1, attrToVal.get(STATE_ABBREVIATION));
+			updateForestCoveredArea_COVERAGE.setDouble(2, Double.parseDouble(attrToVal.get(AREA)));
+			updateForestCoveredArea_COVERAGE.setString(3, forestNo);
+
+			maybeAddNewState.setString(1, attrToVal.get(STATE_ABBREVIATION));
+
+			maybeAddNewState.execute();
+			updateForestCoveredAreaStmt_FOREST.execute();
+			updateForestCoveredArea_COVERAGE.execute();
 		}
-		else
+		catch(Exception e)
 		{
-			throw new Exception("No forest with the supplied name exists.");
+			con.rollback();
+			throw e;
 		}
 
-		// Update the forest, coverage, and state tables with the user-supplied input
-		updateForestCoveredAreaStmt_FOREST.setDouble(1, Double.parseDouble(attrToVal.get(AREA)));
-		updateForestCoveredAreaStmt_FOREST.setString(2, forestNo);
-
-		updateForestCoveredArea_COVERAGE.setString(1, attrToVal.get(STATE_ABBREVIATION));
-		updateForestCoveredArea_COVERAGE.setDouble(2, Double.parseDouble(attrToVal.get(AREA)));
-		updateForestCoveredArea_COVERAGE.setString(3, forestNo);
-
-		maybeAddNewState.setString(1, attrToVal.get(STATE_ABBREVIATION));
-
-		executeStatements(maybeAddNewState, updateForestCoveredAreaStmt_FOREST, updateForestCoveredArea_COVERAGE);
 		return "Forest \"" + attrToVal.get(FOREST_NAME) + "\" successfully updated.";
 	}
 
 	public ResultSet findTopKBusyWorkers(HashMap<String, String> attrToVal) throws SQLException
 	{
-		findTopKBusyWorkersStmt.setInt(1, Integer.parseInt(attrToVal.get(K)));
+		try
+		{
+			startTransactionStmt.execute();
 
-		executeStatements(findTopKBusyWorkersStmt);
+			findTopKBusyWorkersStmt.setInt(1, Integer.parseInt(attrToVal.get(K)));
+		}
+		catch(SQLException e)
+		{
+			con.rollback();
+			throw e;
+		}
+
+		findTopKBusyWorkersStmt.execute();
 		return findTopKBusyWorkersStmt.getResultSet();
 	}
 
 	public ResultSet displaySensorsRanking(HashMap<String, String> attrToVal) throws SQLException
 	{
-		executeStatements(displaySensorsRankingStmt);
+		try
+		{
+			startTransactionStmt.execute();
+
+			displaySensorsRankingStmt.execute();
+		}
+		catch(SQLException e)
+		{
+			con.rollback();
+			throw e;
+		}
+
 		return displaySensorsRankingStmt.getResultSet();
 	}
 
 	public ResultSet fetchForest() throws SQLException
 	{
-		executeStatements(fetchForestStmt);
+		startTransactionStmt.execute();
+		fetchForestStmt.execute();
+		con.commit();
 		return fetchForestStmt.getResultSet();
 	}
 
 	public ResultSet fetchCoverage() throws SQLException
 	{
-		executeStatements(fetchCoverageStmt);
+		startTransactionStmt.execute();
+		fetchCoverageStmt.execute();
+		con.commit();
 		return fetchCoverageStmt.getResultSet();
 	}
 
 	public ResultSet fetchIntersection() throws SQLException
 	{
-		executeStatements(fetchIntersectionStmt);
+		startTransactionStmt.execute();
+		fetchIntersectionStmt.execute();
+		con.commit();
 		return fetchIntersectionStmt.getResultSet();
 	}
 
 	public ResultSet fetchReport() throws SQLException
 	{
-		executeStatements(fetchReportStmt);
+		startTransactionStmt.execute();
+		fetchReportStmt.execute();
+		con.commit();
 		return fetchReportStmt.getResultSet();
 	}
 
 	public ResultSet fetchRoad() throws SQLException
 	{
-		executeStatements(fetchRoadStmt);
+		startTransactionStmt.execute();
+		fetchRoadStmt.execute();
+		con.commit();
 		return fetchRoadStmt.getResultSet();
 	}
 
 	public ResultSet fetchSensor() throws SQLException
 	{
-		executeStatements(fetchSensorStmt);
+		startTransactionStmt.execute();
+		fetchSensorStmt.execute();
+		con.commit();
 		return fetchSensorStmt.getResultSet();
 	}
 
 	public ResultSet fetchState() throws SQLException
 	{
-		executeStatements(fetchStateStmt);
+		startTransactionStmt.execute();
+		fetchStateStmt.execute();
+		con.commit();
 		return fetchStateStmt.getResultSet();
 	}
 
 	public ResultSet fetchWorker() throws SQLException
 	{
-		executeStatements(fetchWorkerStmt);
+		startTransactionStmt.execute();
+		fetchWorkerStmt.execute();
+		con.commit();
 		return fetchWorkerStmt.getResultSet();
 	}
 
-	private void executeStatements(PreparedStatement... statements) throws SQLException
+	public void rollback() throws SQLException
 	{
-		con.setAutoCommit(false);
-		try
-		{
-			for (PreparedStatement s : statements)
-			{
-				s.execute();
-			}
-		}
-		catch(SQLException e)
-		{
-			con.rollback(); // undo the staged changes made so far
-			throw e;		// report the original error
-		}
-		con.setAutoCommit(true);
+		con.rollback();
+	}
+
+	public void commit() throws SQLException
+	{
+		con.commit();
 	}
 
 	public void closeConnection() throws SQLException

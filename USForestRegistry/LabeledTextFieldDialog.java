@@ -18,7 +18,6 @@ class LabeledTextFieldDialog extends JDialog implements ActionListener, Property
 	private LinkedHashMap<String, String> labelToTypedText = null;
 	private boolean isDummyDialog;
 
-	//TODO: proper password field
 	public LabeledTextFieldDialog(Frame owner, String title, LabelAndFormat[] labelsAndFormats,
 								  String affirmativeOptionText, boolean hasCancelButton)
 	{
@@ -142,15 +141,22 @@ class LabeledTextFieldDialog extends JDialog implements ActionListener, Property
 				for(String label : labelToTypedText.keySet())
 				{
 					String textOfThisField = textFields[index].getText();
-					if(textFields[index] instanceof JFormattedTextField &&
-							(textOfThisField == null || textOfThisField.trim().equals("")))
+					if(textFields[index] instanceof JFormattedTextField)
 					{
-						// Show a warning message about the box that needs a value, and let the user fill it in
-						JOptionPane.showMessageDialog(this, "Please enter a value for \"" + label + "\"",
-								"Missing value", JOptionPane.WARNING_MESSAGE);
-						optionPane.setValue(JOptionPane.UNINITIALIZED_VALUE);
-						allValuesFilled = false;
-						break;
+							if(textOfThisField == null || textOfThisField.trim().equals(""))
+							{
+								// Show a warning message about the box that needs a value, and let the user fill it in
+								JOptionPane.showMessageDialog(this, "Please enter a value for \"" + label + "\"",
+										"Missing value", JOptionPane.WARNING_MESSAGE);
+								optionPane.setValue(JOptionPane.UNINITIALIZED_VALUE);
+								allValuesFilled = false;
+								break;
+							}
+					}
+					else if(textOfThisField.trim().equals(""))
+					{
+						// It's an unformatted string field, and it's empty
+						textOfThisField = null;
 					}
 
 					// Copy the user-entered text into the LinkedHashMap, paired with the field label
