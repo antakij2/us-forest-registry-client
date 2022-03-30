@@ -105,9 +105,17 @@ public class Model
 				ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
 
 		displaySensorsRankingStmt = con.prepareStatement(String.format(
-				"SELECT sensor.%s, %s, %s, COUNT(*) reports_generated FROM sensor JOIN report ON " +
-						"sensor.%s=report.%s GROUP BY sensor.%s, %s, %s ORDER BY reports_generated DESC",
-				SENSOR_ID, X, Y, SENSOR_ID, SENSOR_ID, SENSOR_ID, X, Y),
+				"WITH sensors_with_reports AS " +
+						"(SELECT sensor.%s, %s, %s, COUNT(*) report_count " +
+						"FROM sensor JOIN report ON sensor.%s=report.%s " +
+						"GROUP BY sensor.%s, %s, %s) " +
+					"SELECT sensor.%s, sensor.%s, sensor.%s, 0 report_count " +
+					"FROM sensor WHERE sensor.%s NOT IN (select %s from sensors_with_reports) " +
+					"UNION " +
+					"SELECT * " +
+					"FROM sensors_with_reports " +
+					"ORDER BY report_count DESC",
+						SENSOR_ID, X, Y, SENSOR_ID, SENSOR_ID, SENSOR_ID, X, Y, SENSOR_ID , X, Y, SENSOR_ID, SENSOR_ID),
 				ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
 
 		fetchForestStmt = con.prepareStatement("SELECT * FROM forest", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
@@ -414,7 +422,7 @@ public class Model
 		return "Forest \"" + attrToVal.get(FOREST_NAME) + "\" successfully updated.";
 	}
 
-	public ResultSet findTopKBusyWorkers(HashMap<String, String> attrToVal) throws SQLException
+	public ResultSet findTopKBusyWorkers(HashMap<String, String> attrToVal) throws Exception
 	{
 		try
 		{
@@ -429,7 +437,22 @@ public class Model
 		}
 
 		findTopKBusyWorkersStmt.execute();
-		return findTopKBusyWorkersStmt.getResultSet();
+
+		// Count how many busy workers there are
+		ResultSet rs = findTopKBusyWorkersStmt.getResultSet();
+		int i = 0;
+		while(rs.next())
+		{
+			++i;
+		}
+
+		if(i == 0)
+		{
+			throw new Exception("There are no busy workers.");
+		}
+		rs.beforeFirst();
+
+		return rs;
 	}
 
 	public ResultSet displaySensorsRanking(HashMap<String, String> attrToVal) throws SQLException
