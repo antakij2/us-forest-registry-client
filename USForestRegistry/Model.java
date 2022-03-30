@@ -2,21 +2,24 @@ package USForestRegistry;
 
 import java.sql.*;
 import java.text.NumberFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
 
 import static USForestRegistry.StringConstants.*;
 
+/**
+ * The backend interface that lets this application communicate with the underlying database.
+ */
 public class Model
 {
-	public final NumberFormat[] NUMBER_INSTANCES;
-	public final NumberFormat[] INTEGER_INSTANCES;
-	public final SimpleDateFormat[] DATE_INSTANCES;
+	public NumberFormat[] NUMBER_INSTANCES;
+	public NumberFormat[] INTEGER_INSTANCES;
+	public SimpleDateFormat[] DATE_INSTANCES;
 
-	private final Connection con;
+	private Connection con;
+	private boolean connectedToDatabase = false;
 
-	private final PreparedStatement addForestStmt_FOREST, maybeAddNewState, addForestStmt_COVERAGE, addWorkerStmt,
+	private PreparedStatement addForestStmt_FOREST, maybeAddNewState, addForestStmt_COVERAGE, addWorkerStmt,
 			addSensorStmt, switchWorkersDutiesCheckStateStmt, switchWorkersDutiesQuerySensorIDStmt,
 			switchWorkersDutiesSetMaintainerOnSSNStmt, updateSensorStatusQueryStmt, updateSensorStatusStmt_SENSOR,
 			updateSensorStatusStmt_REPORT, updateForestCoveredAreaQueryStmt, updateForestCoveredAreaStmt_FOREST,
@@ -24,20 +27,35 @@ public class Model
 			fetchCoverageStmt, fetchIntersectionStmt, fetchReportStmt, fetchRoadStmt, fetchSensorStmt, fetchStateStmt,
 			fetchWorkerStmt, startTransactionStmt;
 
-	public Model(HashMap<String, String> attrToVal) throws SQLException
+	/**
+	 * @param attrToVal for all methods in class Model that take an attrToVal argument, attrToVal holds a mapping of
+	 *                  field names (e.g. "forest_no" in the forest table) to values entered by the user prior to
+	 *                  calling the Model method. The exact field names in each attrToVal depend on the requirements
+	 *                  of the specific operation that the user invoked
+	 */
+
+	/**
+	 * Set up resources and all the parameterized prepared statements required to perform database operations.
+	 * Connect to the database with user-supplied credentials.
+	 * @return a dummy value that is ignored, so that this method plays nice with the FunctionThrowsException interface
+	 */
+	public int initializeAndConnect(HashMap<String, String> attrToVal) throws SQLException
 	{
+		// Create a pool of Format objects to be used by a user-facing interface to sanitize real-number type inputs
 		NUMBER_INSTANCES = new NumberFormat[6];
 		for(int i=0; i<NUMBER_INSTANCES.length; ++i)
 		{
 			NUMBER_INSTANCES[i] = NumberFormat.getNumberInstance();
 		}
 
+		// Create a pool of Format objects to be used by a user-facing interface to sanitize integer type inputs
 		INTEGER_INSTANCES = new NumberFormat[1];
 		for(int i=0; i<INTEGER_INSTANCES.length; ++i)
 		{
 			INTEGER_INSTANCES[i] = NumberFormat.getIntegerInstance();
 		}
 
+		// Create a pool of Format objects to be used by a user-facing interface to sanitize date/time type inputs
 		DATE_INSTANCES = new SimpleDateFormat[2];
 		for(int i=0; i<DATE_INSTANCES.length; ++i)
 		{
@@ -51,7 +69,6 @@ public class Model
 		con = DriverManager.getConnection(url, attrToVal.get(USERNAME), attrToVal.get(PASSWORD));
 		con.setAutoCommit(false);
 
-		//TODO: alter constraints on schema to implement restrictions from instructions
 		addForestStmt_FOREST = con.prepareStatement("INSERT INTO forest VALUES(?, ?, ?, ?, ?, ?, ?, ?)");
 		maybeAddNewState = con.prepareStatement(String.format(
 				"INSERT INTO state(%s) VALUES(?) ON CONFLICT DO NOTHING", ABBREVIATION));
@@ -103,7 +120,25 @@ public class Model
 		fetchWorkerStmt = con.prepareStatement("SELECT * FROM worker", ResultSet.TYPE_SCROLL_SENSITIVE,  ResultSet.CONCUR_READ_ONLY);
 
 		startTransactionStmt = con.prepareStatement("START TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+		connectedToDatabase = true;
+		return -1;
 	}
+
+	/**
+	 * @return whether this Model object has successfully connected to the underlying database
+	 */
+	public boolean isConnectedToDatabase()
+	{
+		return connectedToDatabase;
+	}
+
+	/**
+	 * The following eight methods implement the required tasks in Programming Assignment 1.
+	 * Most of them return a String with a task-specific confirmation message upon success.
+	 * findTopKBusyWorkers and displaySensorsRanking, however, return a ResultSet upon
+	 * success, which contains the data requested by the user's query.
+	 */
 
 	public String addForest(HashMap<String, String> attrToVal) throws SQLException
 	{
@@ -145,10 +180,14 @@ public class Model
 		{
 			startTransactionStmt.execute();
 
+			maybeAddNewState.setString(1, attrToVal.get(EMPLOYING_STATE_ABBREVIATION));
+
 			addWorkerStmt.setString(1, attrToVal.get(SSN));
 			addWorkerStmt.setString(2, attrToVal.get(NAME));
 			addWorkerStmt.setInt(3, Integer.parseInt(attrToVal.get(RANK)));
-			addWorkerStmt.setString(4, attrToVal.get(EMPLOYING_STATE));
+			addWorkerStmt.setString(4, attrToVal.get(EMPLOYING_STATE_ABBREVIATION));
+
+			maybeAddNewState.execute();
 			addWorkerStmt.execute();
 		}
 		catch(SQLException e)
@@ -257,6 +296,7 @@ public class Model
 						"UPDATE sensor SET %s=%s WHERE %s in %s", MAINTAINER, ssns[1], SENSOR_ID, ids));
 				switchWorkersDutiesSetMaintainerOnSSNStmt.execute();
 				setMaintainerOnIDStmt.execute();
+				setMaintainerOnIDStmt.close();
 			}
 			else
 			{
@@ -409,6 +449,11 @@ public class Model
 		return displaySensorsRankingStmt.getResultSet();
 	}
 
+	/**
+	 * The following eight methods, with names of the form "fetchX", select all data from table X in the database.
+	 * @return the table data
+	 */
+
 	public ResultSet fetchForest() throws SQLException
 	{
 		startTransactionStmt.execute();
@@ -473,16 +518,25 @@ public class Model
 		return fetchWorkerStmt.getResultSet();
 	}
 
+	/**
+	 * Roll back all changes made in the current transaction.
+	 */
 	public void rollback() throws SQLException
 	{
 		con.rollback();
 	}
 
+	/**
+	 * Commit all changes made in the current transaction.
+	 */
 	public void commit() throws SQLException
 	{
 		con.commit();
 	}
 
+	/**
+	 * Close all the prepared statements, and then close the connection to the underlying database.
+	 */
 	public void closeConnection() throws SQLException
 	{
 		addForestStmt_FOREST.close();

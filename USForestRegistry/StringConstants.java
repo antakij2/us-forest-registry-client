@@ -1,5 +1,8 @@
 package USForestRegistry;
 
+/**
+ * String constants that are referenced in multiple places in the application.
+ */
 public class StringConstants
 {
 	public static final String FOREST_NO = "forest_no";
@@ -51,5 +54,6 @@ public class StringConstants
 	public static final String FIND_TOP_K_BUSY_WORKERS = "Find Top K Busy Workers";
 	public static final String DISPLAY_SENSORS_RANKING = "Display Sensors Ranking";
 	public static final String STATE_ABBREVIATION = STATE + "_" + ABBREVIATION;
+	public static final String EMPLOYING_STATE_ABBREVIATION = EMPLOYING_STATE + "_" + ABBREVIATION;
 	public static final String DOTS = "...";
 }
