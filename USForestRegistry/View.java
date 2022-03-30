@@ -284,7 +284,18 @@ public class View implements ActionListener
 						if(choice == JOptionPane.CANCEL_OPTION || choice == JOptionPane.CLOSED_OPTION)
 						{
 							// Let the user go back and change data
-							model.rollback();
+							if(hasCancelButton)
+							{
+								// this is a normal operation after the user has logged in, so just roll it back
+								model.rollback();
+							}
+							else
+							{
+								// this is the user trying to log in, so close the existing connection to allow the
+								// user to log in with different credentials
+								model.closeConnection();
+							}
+
 							toReturn = null;
 							dialog.revive();
 							continue;

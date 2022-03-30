@@ -243,6 +243,11 @@ public class Model
 
 	public String switchWorkersDuties(HashMap<String, String> attrToVal) throws Exception
 	{
+		if(attrToVal.get(WORKER_A_NAME).equals(attrToVal.get(WORKER_B_NAME)))
+		{
+			throw new Exception("The same worker name was supplied twice.");
+		}
+
 		try
 		{
 			startTransactionStmt.execute();
@@ -577,6 +582,7 @@ public class Model
 		findTopKBusyWorkersStmt.close();
 		displaySensorsRankingStmt.close();
 		fetchForestStmt.close();
+		fetchForestStmt.close();
 		fetchCoverageStmt.close();
 		fetchIntersectionStmt.close();
 		fetchReportStmt.close();
@@ -586,5 +592,6 @@ public class Model
 		fetchWorkerStmt.close();
 
 		con.close();
+		connectedToDatabase = false;
 	}
 }
