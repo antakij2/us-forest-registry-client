@@ -2,8 +2,8 @@
 out/
 lib/
 
+.gitignore
 *.iml
 *.txt
 *.class
 *.py
-*.sql
