@@ -180,8 +180,8 @@ class LabeledTextFieldDialog extends JDialog implements ActionListener, Property
 	{
 		String prop = e.getPropertyName();
 
-        if ((e.getSource() == optionPane) && (JOptionPane.VALUE_PROPERTY.equals(prop)
-				|| JOptionPane.INPUT_VALUE_PROPERTY.equals(prop)))
+        	if ((e.getSource() == optionPane) && (JOptionPane.VALUE_PROPERTY.equals(prop)
+					|| JOptionPane.INPUT_VALUE_PROPERTY.equals(prop)))
 		{
 			Object value = optionPane.getValue();
 			if (value.equals(affirmativeOptionText)) //user hit the affirmative button

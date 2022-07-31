@@ -243,7 +243,15 @@ public class Model
 
 	public String switchWorkersDuties(HashMap<String, String> attrToVal) throws Exception
 	{
-		if(attrToVal.get(WORKER_A_NAME).equals(attrToVal.get(WORKER_B_NAME)))
+		String a = attrToVal.get(WORKER_A_NAME);
+		String b = attrToVal.get(WORKER_B_NAME);
+
+		if(a == null || b == null)
+		{
+			throw new Exception("Please enter a name for both workers.");
+		}
+
+		if(a.equals(b))
 		{
 			throw new Exception("The same worker name was supplied twice.");
 		}
@@ -253,8 +261,8 @@ public class Model
 			startTransactionStmt.execute();
 
 			// Check if both workers' names exist in the database
-			switchWorkersDutiesCheckStateStmt.setString(1, attrToVal.get(WORKER_A_NAME));
-			switchWorkersDutiesCheckStateStmt.setString(2, attrToVal.get(WORKER_B_NAME));
+			switchWorkersDutiesCheckStateStmt.setString(1, a);
+			switchWorkersDutiesCheckStateStmt.setString(2, b);
 			switchWorkersDutiesCheckStateStmt.execute();
 
 			ResultSet rs = switchWorkersDutiesCheckStateStmt.getResultSet();
