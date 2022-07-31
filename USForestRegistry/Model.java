@@ -330,7 +330,7 @@ public class Model
 			throw e;
 		}
 
-		return "Workers \"" + attrToVal.get(WORKER_A_NAME) + "\" and \"" + attrToVal.get(WORKER_B_NAME) +
+		return "Workers \"" + a + "\" and \"" + b +
 				"\" have successfully switched duties.";
 	}
 
